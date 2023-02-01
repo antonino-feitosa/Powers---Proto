@@ -17,11 +17,11 @@ class TurnControl {
 
     length() { return this.values.length; }
 
-    del(element) {
+    del(element, pos = null) {
         if (this.length() <= 0) { throw new Error('The heap is empty!'); }
 
         const values = this.values;
-        let index = values.findIndex(e => e === element);
+        let index = pos == null ? values.findIndex(e => e === element) : pos;
         if (index >= 0) {
             let e = values[index];
             values[index] = values[values.length - 1];
@@ -44,7 +44,7 @@ class TurnControl {
     push(element) {
         if (!element.initiative) { throw new Error('The element does not have initiative!'); }
         element.scheduling = element.initiative + this.turn;
-        !element.insertOrder && (element.insertOrder = this.insertCount++);
+        element.insertOrder !== null && (element.insertOrder = this.insertCount++);
         this.values.push(element);
         this._up(this.values.length - 1);
         return this;

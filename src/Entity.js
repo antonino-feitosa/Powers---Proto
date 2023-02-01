@@ -1,8 +1,6 @@
 
 "use strict";
 
-const { Viewer } = require('./View');
-const { DijkstraMap } = require('./DijkstraMap');
 const { CombatEvent, CombatStatus } = require('./Combat');
 
 class Render {
@@ -19,9 +17,9 @@ class Entity {
         this.point = pos;
         this.render = render;
 
-        const blocked = game.grid.blocked;
-        !blocked[pos] && (blocked[pos] = []);
-        blocked[pos].push(this);
+        const pointToEntity = game.grid.pointToEntity;
+        !pointToEntity[pos] && (pointToEntity[pos] = []);
+        pointToEntity[pos].push(this);
     }
     update() { };
 
@@ -58,30 +56,25 @@ class Item extends Entity {
 
 class Moveable extends Entity {
 
-    canOverlap(blocked) {
-        return !blocked || blocked.reduce((can, e) => can && (e instanceof Item), true);
+    canOverlap(positionList) {
+        return !positionList || positionList.reduce((can, e) => can && (e instanceof Item), true);
     }
 
     tryMove(x, y) {
         const entity = this;
         const game = this.game;
         const grid = game.grid;
-        const blocked = grid.blocked;
+        const pointToEntity = grid.pointToEntity;
 
         let [ox, oy] = grid.Point.to2D(entity.point);
         let dest = grid.Point.from(x + ox, y + oy);
         if (grid.Point.is2DValid(x + ox, y + oy) && !game.isOpaque(dest)) {
-            if (this.canOverlap(blocked[dest])) {
-                !blocked[dest] && (blocked[dest] = []);
-
-                blocked[entity.point] = blocked[entity.point].filter(e => e !== this);
-                blocked[dest].push(this);
+            if (this.canOverlap(pointToEntity[dest])) {
+                pointToEntity[dest] === undefined && (pointToEntity[dest] = []);
+                pointToEntity[entity.point] = pointToEntity[entity.point].filter(e => e !== this);
+                pointToEntity[dest].push(this);
                 entity.point = dest;
-                entity.viewer.center = dest;
-                entity.viewer.isDirty = true;
             }
-        } else {
-            entity.viewer.isDirty = false;
         }
     }
 }
@@ -97,9 +90,11 @@ class Unit extends Moveable {
         this.isDead = false;
         this.initiative = 20;
         this.combatStatus = new CombatStatus();
-        let neighborhood = (p) => game.neighborhood(p).filter(p => this.canOverlap(game.grid.blocked[p]));
-        this.viewer = new Viewer(6, pos, game.grid.Point, game.isOpaque.bind(game), 'circle');
-        this.heatMap = new DijkstraMap(new Map(), game.rand, neighborhood, game.moveCost.bind(game));
+    }
+
+    update() {
+        this.processDamage(); if (this.idDead) { return; }
+        this.processPick();
     }
 
     processDamage() {
@@ -107,7 +102,7 @@ class Unit extends Moveable {
 
         const game = this.game;
         const grid = game.grid;
-        const blocked = grid.blocked;
+        const pointToEntity = grid.pointToEntity;
         this.damage.forEach(de => {
             this.combatStatus.hp -= de.force
             game.ui.printLog(`The ${this.name} Suffers ${de.force} Points of Damage! `);
@@ -115,7 +110,7 @@ class Unit extends Moveable {
         this.damage = [];
         if (this.combatStatus.hp <= 0) {
             game.ui.printLog(`The ${this.name} Dies!`);
-            blocked[this.point] = blocked[this.point].filter(e => e !== this);
+            pointToEntity[this.point] = pointToEntity[this.point].filter(e => e !== this);
             this.isDead = true;
         }
     }
@@ -124,31 +119,23 @@ class Unit extends Moveable {
         const game = this.game;
         const grid = game.grid;
         const point = this.point;
-        const blocked = grid.blocked;
-        if (blocked[point].length > 1) {
-            blocked[point].filter(x => x instanceof Item).forEach(item => {
+        const pointToEntity = grid.pointToEntity;
+        if (pointToEntity[point].length > 1) {
+            pointToEntity[point].filter(x => x instanceof Item).forEach(item => {
                 item.inInventory = true;
                 this.inventory.push(item);
                 game.ui.printLog(`The ${this.name} picked up: ${item.name}`);
             });
-            blocked[point] = blocked[point].filter(x => x instanceof Item);
+            pointToEntity[point] = pointToEntity[point].filter(x => x instanceof Item);
         }
     }
 
-    processView() {
-        const viewer = this.viewer;
-        if (viewer.isDirty) {
-            viewer.calculate(pos => this.revealed[pos] = pos);
-            viewer.isDirty = false;
-        }
-    }
-
-    processMotion(withRange = -1.2, withFlee = -1.2) {
-        const viewer = this.viewer;
-        const heatMap = this.heatMap;
-        heatMap.calculate(this.revealed);
-        withRange && heatMap.makeRangeMap(-1.2, viewer.radius);
-        withFlee && heatMap.makeFleeMap(-1.2);
+    inRange(pos, range = 0) {
+        const game = this.game;
+        const grid = game.grid;
+        let [px, py] = grid.Point.to2D(this.point);
+        let [ox, oy] = grid.Point.to2D(pos);
+        return Math.abs(px - ox) + Math.abs(py - oy) <= range;
     }
 }
 
@@ -159,67 +146,12 @@ class Player extends Unit {
         this.render.fg = 'yellow';
     }
 
-    canOverlap(blocked) {
-        if (blocked) {
-            blocked.filter(e => e instanceof Monster)
+    canOverlap(positionList) {
+        if (positionList) {
+            positionList.filter(e => e instanceof Monster)
                 .forEach(e => e.damage.push(new CombatEvent(this, 8)));
         }
-        return super.canOverlap(blocked);
-    }
-
-    update() {
-        const game = this.game;
-        const player = this;
-        const grid = game.grid;
-
-        this.processDamage(); if (this.idDead) { return; }
-        this.processPick();
-
-        if (player.viewer.isDirty) {
-            game.hasFog && (grid.visible = []);
-            player.viewer.calculate((pos, light) => {
-                if (light > 0) {
-                    game.hasFog && (grid.visible[pos] = pos);
-                    grid.revealed[pos] = pos;
-                }
-            });
-        }
-    }
-
-    draw() {
-        super.draw();
-        const player = this;
-        const game = this.game;
-        const grid = game.grid;
-        const heatMap = this.heatMap;
-        if (game.lit && false) {
-
-            player.viewer.calculate((pos, light) => {
-                if (light > 0) {
-                    game.hasFog && (grid.visible[pos] = pos);
-                    grid.revealed[pos] = pos;
-                }
-            });
-
-            heatMap.sources = new Map([[player.point, 0]]);
-            heatMap.calculate(grid.visible);
-            heatMap.makeFleeMap(-1.2);
-            heatMap.makeRangeMap(-1.2, 4);
-
-            const context = game.context;
-            heatMap.rangeMap.dist.forEach((val, p) => {
-                //val = Math.abs(val);
-                if (val < 9) {
-                    let str = val.toFixed(0);
-                    let [x, y] = grid.Point.to2D(p);
-                    context.render(x, y, str);
-                } else {
-                    let [x, y] = grid.Point.to2D(p);
-                    context.render(x, y, '.', 'red');
-                }
-            });
-        }
-
+        return super.canOverlap(positionList);
     }
 }
 
@@ -232,70 +164,21 @@ class Monster extends Unit {
     update() {
         this.processDamage(); if (this.idDead) { return; }
         this.processPick();
-        this.processView();
 
         const game = this.game;
         const grid = game.grid;
         const player = game.player;
-        const viewer = this.viewer;
-        const heatMap = this.heatMap;
+        const heatMap = game.heatMap;
 
-        if (player.viewer.lightMap.get(this.point) > 0) {
-            this.heatMap.sources = new Map([[game.player.point, 0]]);
-            this.processMotion();
-
+        if(this.inRange(player.point)){
+            player.damage.push(new CombatEvent(this, 5));
+            game.ui.printLog(`The ${this.name} Attacks!`);
+        } else {
             let moveIndex = heatMap.fleeMap.chase(this.point);
-            if (this.inContact().includes(player)) {
-                player.damage.push(new CombatEvent(this, 5));
-                game.ui.printLog(`The ${this.name} Attacks!`);
-            } else {
-                let [dx, dy] = grid.Point.to2D(moveIndex);
-                let [x, y] = grid.Point.to2D(this.point);
-                this.tryMove(dx - x, dy - y);
-                game.rand.nextDouble() < 1 && game.ui.printLog(`${this.name} shouts a insult!`);
-            }
-        }
-    }
-
-    inContact() {
-        const game = this.game;
-        const grid = game.grid;
-        const blocked = grid.blocked;
-        let entities = [];
-        game.neighborhood(this.point).forEach(n => blocked[n] && entities.push(...blocked[n]));
-        return entities;
-    }
-
-    draw() {
-        const game = this.game;
-        const grid = game.grid;
-
-        if (grid.visible[this.point] || !game.hasFog) {
-            super.draw(game);
-        }
-
-        if (game.lit && this.heatMap.rangeMap) {
-            const viewer = this.viewer;
-            const heatMap = this.heatMap;
-            const player = game.player;
-
-            viewer.calculate(pos => this.revealed[pos] = pos);
-            heatMap.sources = new Map([[player.point, 0]]);
-            heatMap.calculate(this.revealed);
-            heatMap.makeRangeMap(-1.2, viewer.radius);
-            heatMap.makeFleeMap(-1.2);
-
-            this.heatMap.fleeMap.dist.forEach((val, p) => {
-                val = Math.abs(val);
-                if (val < 9) {
-                    let str = val.toFixed(0);
-                    let [x, y] = grid.Point.to2D(p);
-                    game.context.render(x, y, str);
-                } else {
-                    let [x, y] = grid.Point.to2D(p);
-                    game.context.render(x, y, '.', 'red');
-                }
-            });
+            let [dx, dy] = grid.Point.to2D(moveIndex);
+            let [x, y] = grid.Point.to2D(this.point);
+            this.tryMove(dx - x, dy - y);
+            game.rand.nextDouble() < 0.3 && game.ui.printLog(`${this.name} shouts a insult!`);
         }
     }
 }

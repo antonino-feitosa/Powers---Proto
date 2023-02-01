@@ -19,7 +19,7 @@ class Viewer {
         }
     }
 
-    calculate(call = () => 0) {
+    calculate(call = (pos, light) => 0) {
         if (this.isDirty) {
             this.lightMap = new Map();
             this.lightMap.set(this.center, 1);//light the starting cell

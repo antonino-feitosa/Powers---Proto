@@ -67,12 +67,12 @@ class UI {
                 let x = this.cursorSelect.x;
                 let y = this.cursorSelect.y;
                 switch (key) {
-                    case 'h': this.cursorSelect.canMoveTo(x - 1, y + 0); this.cursorSelect.x -= 1; break;
-                    case 'k': this.cursorSelect.canMoveTo(x + 0, y - 1); this.cursorSelect.y -= 1; break;
-                    case 'j': this.cursorSelect.canMoveTo(x + 0, y + 1); this.cursorSelect.y += 1; break;
-                    case 'l': this.cursorSelect.canMoveTo(x + 1, y + 0); this.cursorSelect.x += 1; break;
-                    case 'y': this.cursorSelect.call(x, y); this.state = UIState.Idle; break;
-                    case 'b': this.state = UIState.Idle; break;
+                    case 'a': this.cursorSelect.canMoveTo(x - 1, y + 0); this.cursorSelect.x -= 1; break;
+                    case 'w': this.cursorSelect.canMoveTo(x + 0, y - 1); this.cursorSelect.y -= 1; break;
+                    case 'x': this.cursorSelect.canMoveTo(x + 0, y + 1); this.cursorSelect.y += 1; break;
+                    case 'd': this.cursorSelect.canMoveTo(x + 1, y + 0); this.cursorSelect.x += 1; break;
+                    case 's': this.cursorSelect.call(x, y); this.state = UIState.Idle; break;
+                    case 'escape': this.state = UIState.Idle; break;
                 }
                 return 'draw';
             case UIState.TextInput:
@@ -92,19 +92,19 @@ class UI {
                 }
                 return 'draw';
             case UIState.Messages:
-                if (key === 'y') {
+                if (key === 's') {
                     this.messages.current += 1;
                     if (this.messages.current >= this.messages.sequence.length) {
                         this.messages.call();
                         this.state = UIState.Idle;
                     }
                     return 'draw';
-                } else if (key === 'b') {
+                } else if (key === 'escape') {
                     this.messages.current = Math.max(0, this.messages.current - 1);
                     return 'draw';
                 }
             case UIState.ToolTip:
-                if (key === 'y' || key === 'b') {
+                if (key === 's' || key === 'escape') {
                     this.tooltip.call();
                     this.state = UIState.Idle;
                     return 'draw';
@@ -114,14 +114,14 @@ class UI {
 
     inputActions(player, key) {
         switch (key) {
-            case 'h': player.tryMove(-1, +0); break;
-            case 'k': player.tryMove(+0, -1); break;
-            case 'j': player.tryMove(+0, +1); break;
-            case 'l': player.tryMove(+1, +0); break;
-            case 'y': player.tryMove(-1, -1); break;
-            case 'u': player.tryMove(+1, -1); break;
-            case 'b': player.tryMove(-1, +1); break;
-            case 'n': player.tryMove(+1, +1); break;
+            case 'a': player.tryMove(-1, +0); break;
+            case 'w': player.tryMove(+0, -1); break;
+            case 'x': player.tryMove(+0, +1); break;
+            case 'd': player.tryMove(+1, +0); break;
+            case 'q': player.tryMove(-1, -1); break;
+            case 'e': player.tryMove(+1, -1); break;
+            case 'z': player.tryMove(-1, +1); break;
+            case 'c': player.tryMove(+1, +1); break;
             default: return null;
         }
         return 'action';
@@ -262,7 +262,7 @@ class UI {
         for (let i = 0; i < text.length; i++) {
             this.fillMessage(text[i], x + 1, y + 1 + i);
         }
-        this.fillMessage('(y)', x + 1, y + text.length + 1);
+        this.fillMessage('(s)', x + 1, y + text.length + 1);
     }
 
     drawMessage() {
@@ -271,7 +271,7 @@ class UI {
         for (let i = 0; i < text.length; i++) {
             this.fillMessage(text[i], 6, 6 + i);
         }
-        this.fillMessage('(y) Next  (b) Previous', 6, 6 + text.length);
+        this.fillMessage('(s) Next  (esc) Previous', 6, 6 + text.length);
     }
 
     drawInputText() {

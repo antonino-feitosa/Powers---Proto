@@ -52,7 +52,7 @@ class Grid {
         this.tiles = [];
         this.revealed = [];
         this.visible = [];
-        this.blocked = [];
+        this.pointToEntity = [];
         this.Point = new Point(width, height);
     }
 
