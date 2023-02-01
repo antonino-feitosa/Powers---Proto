@@ -1,0 +1,10 @@
+{
+  "author": {
+    "name": "Antonino Feitosa",
+    "email": "antonino_feitosa@yahoo.com.br"
+  },
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "node Main.js"
+  }
+}
