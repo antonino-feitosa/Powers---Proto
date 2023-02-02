@@ -1,9 +1,16 @@
 
-"use strict";
+import { range } from './Utils';
 
-const { range } = require('./Utils');
+export class Context {
 
-class Context {
+    width: number;
+    height: number;
+    _width: number;
+    _height: number;
+    background: string;
+    foreground: string;
+    clearBuffer: boolean;
+    matrix: string[][];
 
     constructor(width = 80, height = 50) {
         this.width = width;
@@ -13,53 +20,53 @@ class Context {
 
         this.background = 'black';
         this.foreground = 'white';
-        this.fog = false;
         this.clearBuffer = true;
 
         let bg = Context._applyColor(' ', this.foreground, this.background);
         this.matrix = [];
         range(0, this._height, _ => {
-            let row = [];
+            let row: string[] = [];
             range(0, this._width, () => row.push(bg));
             this.matrix.push(row);
         });
     }
 
-    start() {
+    start(): void {
         this.clearBuffer && process.stdout.write('\u001b[?1049h'); // enable alternative buffer
         this.clearBuffer && process.stdout.write('\u001b[?25l'); // hide cursor
     }
 
-    render(x, y, glyph, fg, bg) {
+    render(x: number, y: number, glyph: string, fg: string, bg: string): void {
         this.matrix[y][x] = Context._applyColor(glyph, fg, bg);
     }
 
-    build() {
+    build(): void {
         this.clearBuffer && process.stdout.write(`\x1b[${this._height + 1}A`); // move to start
         this.matrix.forEach(row => console.log(row.join('')));
         this.clear();
     }
 
-    clear() {
+    clear(): void {
         let back = Context._applyColor(' ', this.foreground, this.background);
         this.matrix.forEach(row => row.fill(back));
     }
 
-    dispose(timer) {
+    dispose(): void {
         process.stdin.pause();
-        timer && clearInterval(timer);
         process.stdout.write('\u001b[0m'); // reset colors and modes
         process.stdout.write('\u001b[?25h'); // restore cursor (ANSI escape sequence)
     }
 
-    listenInput(call, timer = null) {
+    listenInput(call: (key: string, name: string) => void): void {
         if (process.stdin.isTTY) {
             const dispose = this.dispose.bind(this);
             process.stdin.on('data', function (key) {
                 if (typeof key === 'string') {
                     let name = Context.CodeToName.get(key);
                     if (name === 'ctrl+c') {
-                        dispose(timer);
+                        dispose();
+                    } else if (!name) {
+                        name = "";
                     }
                     call(key, name);
                 }
@@ -103,10 +110,10 @@ class Context {
         ['\u001B\u005B\u0044', 'left']
     ]);
 
-    static _applyColor = function (text, fg = 'white', bg = 'black') {
+    static _applyColor = function (text: string, fg = 'white', bg = 'black') {
         let fgColor = Context.Color.get(fg);
         let bgColor = Context.Color.get(bg);
-        let convert = (c) => {
+        let convert = (c: string) => {
             let r = parseInt(c.substring(0, 2), 16);
             let g = parseInt(c.substring(2, 4), 16);
             let b = parseInt(c.substring(4, 6), 16);
@@ -116,8 +123,4 @@ class Context {
         bgColor = convert(bgColor ? bgColor : '000000');
         return `\u001b[38;2;${fgColor}m\u001b[48;2;${bgColor}m` + text;
     }
-}
-
-module.exports = {
-    Context
 }

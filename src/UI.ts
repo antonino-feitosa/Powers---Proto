@@ -1,29 +1,40 @@
 
+import { Point } from './Point';
+import { Game } from './Main';
+import { Context } from './Context';
+import { Player } from './Entity';
+
 const UIState = { Idle: 0, Log: 1, Invetory: 2, Cursor: 3, TextInput: 4, Messages: 5, ToolTip: 6 };
 
-class UI {
-    constructor(game, numLinesBottom = 4, numColsRight = 15) {
+export class UI {
+    game: Game;
+    context: Context;
+
+    state = UIState.Idle;
+    numColsRight: number;
+    numLinesBottom: number;
+
+    alertMessage = '';
+    messages: { current: number, sequence: string[], call: () => void } = { current: 0, sequence: [], call: () => { } };
+    tooltip = { title: '', text: '', x: 0, y: 0, call: () => { } }
+    textInput = { text: '', call: (text: String) => { } };
+    cursorSelect = { x: 0, y: 0, canMoveTo: (x: number, y: number) => true, call: (x: number, y: number) => { } };
+    selection: { title: string, options: string[], index: number, call: (index: number) => void } = { title: 'select', options: [], index: 0, call: () => { } };
+    log: { messages: string[], index: number, processed: number } = { messages: [], index: 0, processed: 0 };
+
+    constructor(game: Game, numLinesBottom = 4, numColsRight = 15) {
         this.game = game;
         this.context = game.context;
-        this.state = UIState.Idle;
         this.numColsRight = numColsRight;
         this.numLinesBottom = numLinesBottom;
-
-        this.alertMessage = '';
-        this.messages = { current: 0, sequence: [], call: () => 0 };
-        this.tooltip = { title: '', text: '', x: 0, y: 0, call: () => 0 }
-        this.textInput = { text: '', call: () => 0 };
-        this.cursorSelect = { x: 0, y: 0, canMoveTo: () => true, call: () => 0 };
-        this.selection = { title: 'select', options: [], index: 0, call: () => 0 };
-        this.log = { messages: [], index: 0, processed: 0 };
     }
 
-    nextTurn() {
+    nextTurn(): void {
         this.alertMessage = '';
         this.log.index = this.log.processed;
     }
 
-    input(player, key) {
+    input(player: Player, key: string): string { // TODO
         switch (this.state) {
             case UIState.Idle:
                 switch (key) {
@@ -48,9 +59,8 @@ class UI {
                         this.state = UIState.Idle;
                         this.selection = { title: 'select', options: [], index: 0, call: () => 0 };
                         break;
-                    case 'b':
-                    case '1':
-                        this.selection.call(null);
+                    case 'escape':
+                        this.selection.call(-1);
                         this.state = UIState.Idle;
                         this.selection = { title: 'select', options: [], index: 0, call: () => 0 };
                         break;
@@ -97,57 +107,60 @@ class UI {
                     if (this.messages.current >= this.messages.sequence.length) {
                         this.messages.call();
                         this.state = UIState.Idle;
+                        return 'draw';
                     }
-                    return 'draw';
                 } else if (key === 'escape') {
                     this.messages.current = Math.max(0, this.messages.current - 1);
                     return 'draw';
                 }
+                return '';
             case UIState.ToolTip:
                 if (key === 's' || key === 'escape') {
                     this.tooltip.call();
                     this.state = UIState.Idle;
                     return 'draw';
                 }
+                return '';
         }
+        return '';
     }
 
-    inputActions(player, key) {
+    inputActions(player: Player, key: string): string {
         switch (key) {
-            case 'a': player.tryMove(-1, +0); break;
-            case 'w': player.tryMove(+0, -1); break;
-            case 'x': player.tryMove(+0, +1); break;
-            case 'd': player.tryMove(+1, +0); break;
-            case 'q': player.tryMove(-1, -1); break;
-            case 'e': player.tryMove(+1, -1); break;
-            case 'z': player.tryMove(-1, +1); break;
-            case 'c': player.tryMove(+1, +1); break;
-            default: return null;
+            case 'a': player.tryMove(Point.left(player.pos)); break;
+            case 'w': player.tryMove(Point.up(player.pos)); break;
+            case 'x': player.tryMove(Point.down(player.pos)); break;
+            case 'd': player.tryMove(Point.right(player.pos)); break;
+            case 'q': player.tryMove(Point.upLeft(player.pos)); break;
+            case 'e': player.tryMove(Point.upRight(player.pos)); break;
+            case 'z': player.tryMove(Point.downLeft(player.pos)); break;
+            case 'c': player.tryMove(Point.downRight(player.pos)); break;
+            default: return '';
         }
         return 'action';
     }
 
-    inputText(call) {
+    inputText(call: () => void): void {
         this.textInput.text = '';
         this.textInput.call = call;
         this.state = UIState.TextInput;
     }
 
-    inputCursor(x, y, canMoveTo, call) {
+    inputCursor(x: number, y: number, canMoveTo: (pos: number) => boolean, call: () => {}) {
         this.cursorSelect.x = x;
         this.cursorSelect.y = y;
         this.cursorSelect.canMoveTo = canMoveTo;
         this.cursorSelect.call = call;
     }
 
-    printMessage(messages, call) {
+    printMessage(messages: string[], call: () => {}) {
         this.messages.current = 0;
         this.messages.sequence = messages;
         this.messages.call = call;
         this.state = UIState.Messages;
     }
 
-    printToolTip(title, x, y, text, call) {
+    printToolTip(title: string, x: number, y: number, text: string, call: () => {}) {
         this.tooltip.title = title;
         this.tooltip.x = x;
         this.tooltip.y = y;
@@ -156,23 +169,23 @@ class UI {
         this.state = UIState.ToolTip;
     }
 
-    printAlertMessage(message) {
+    printAlertMessage(message: string) {
         this.alertMessage = message;
     }
 
-    printLog(message) {
+    printLog(message: string) {
         let index = this.formatNumber(this.game.turnCount, 4);
         this.log.messages.push(` Turn ${index}: ` + message);
     }
 
-    printSelection(title, options, call) {
+    printSelection(title: string, options: string[], call: () => {}): void {
         this.selection.title = title;
         this.selection.index = 0;
         this.selection.options = options;
         this.selection.call = call;
     }
 
-    draw() {
+    draw(): void {
         if (this.state === UIState.Log) {
             this.context.clear();
             this.drawLog();
@@ -193,7 +206,7 @@ class UI {
         }
     }
 
-    drawLog() {
+    drawLog(): void {
         const context = this.context;
         const messages = this.log.messages;
         let numToDisplay = Math.min(messages.length, context._height);
@@ -203,7 +216,7 @@ class UI {
         }
     }
 
-    drawBottomBar() {
+    drawBottomBar(): void {
         const context = this.context;
         let start = '\u250D\u2501';
         let middle = this.alertMessage ? ' ' + this.alertMessage + ' ' : '';
@@ -220,8 +233,8 @@ class UI {
 
         if (numToDisplay > this.numLinesBottom - 1) {
             let num = numToDisplay - this.numLinesBottom + 1;
-            num = this.formatNumber(num, 2);
-            let str = ` more ${num} ... `;
+            let textnum = this.formatNumber(num, 2);
+            let str = ` more ${textnum} ... `;
             this.fillMessage(str, context._width - (str.length + 2), context._height - 4);
             numToDisplay = this.numLinesBottom - 1;
         }
@@ -232,12 +245,12 @@ class UI {
         this.log.processed = messages.length;
     }
 
-    drawRightBar() {
+    drawRightBar(): void {
         const context = this.context;
         const barX = context._width - this.numColsRight;
-        context.render(barX, 0, '\u2503');
+        context.render(barX, 0, '\u2503', 'white', 'black');
         for (let i = 1; i < context._height - this.numLinesBottom; i++) {
-            context.render(barX, i, '\u2503');
+            context.render(barX, i, '\u2503', 'white', 'black');
         }
 
         let turnMessage = 'Turn: ' + this.formatNumber(this.game.turnCount, 6)
@@ -252,7 +265,7 @@ class UI {
         this.fillMessage(hpMessage, barX + 2, 4);
     }
 
-    drawToolTip() {
+    drawToolTip(): void {
         let text = this.tooltip.text.split('\n');
         let max = text.reduce((max, cur) => cur.length > max ? cur.length : max, 0);
         const title = this.tooltip.title;
@@ -265,7 +278,7 @@ class UI {
         this.fillMessage('(s)', x + 1, y + text.length + 1);
     }
 
-    drawMessage() {
+    drawMessage(): void {
         let text = this.messages.sequence[this.messages.current].split('\n');
         this.drawBox('Message', 5, 5, 45, text.length + 2);
         for (let i = 0; i < text.length; i++) {
@@ -274,18 +287,18 @@ class UI {
         this.fillMessage('(s) Next  (esc) Previous', 6, 6 + text.length);
     }
 
-    drawInputText() {
+    drawInputText(): void {
         this.drawBox('Input Text', 5, 5, 45, 3);
         this.fillMessage(this.textInput.text, 6, 6);
     }
 
-    drawCursorSelect() {
+    drawCursorSelect(): void {
         let x = this.cursorSelect.x;
         let y = this.cursorSelect.y;
         this.context.render(x, y, ' ', 'white', 'green');
     }
 
-    drawSelect() {
+    drawSelect(): void {
         const numDisplay = 5;
         const index = this.selection.index;
         const options = this.selection.options;
@@ -309,7 +322,7 @@ class UI {
         this.fillMessage('(y) OK  (esc) Cancel', x + 1, y + height - 2);
     }
 
-    drawBox(title, x, y, width, height) {
+    drawBox(title: string, x: number, y: number, width: number, height: number): void {
         const context = this.context;
         width = Math.max(title.length + 6, width);
         let str = '\u250C\u2500 ' + title + ' ';
@@ -324,7 +337,7 @@ class UI {
         }
     }
 
-    fillMessage(msg, index, height, fg = 'white', bg = 'black') {
+    fillMessage(msg: string, index: number, height: number, fg = 'white', bg = 'black'): number {
         let width = Math.min(this.context._width, msg.length);
         for (let c = 0; c < width; c++) {
             this.context.render(c + index, height, msg[c], fg, bg);
@@ -332,7 +345,7 @@ class UI {
         return index + width;
     }
 
-    formatNumber(number, numPlaces) {
+    formatNumber(number: number, numPlaces: number): string {
         let str = ' '.repeat(numPlaces - 1) + number;
         return str.substring(str.length - numPlaces);
     }

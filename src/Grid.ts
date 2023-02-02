@@ -1,10 +1,17 @@
 
-"use strict";
-
-const {Point} = require('./Point');
+import { Point } from "./Point";
+import { Random } from "./Random";
+import { Entity } from "./Entity";
 
 class Rect {
-    constructor(point, width, height) {
+    upLeft: number;
+    upRight: number;
+    downLeft: number;
+    downRight: number;
+    width: number;
+    height: number;
+
+    constructor(point: number, width: number, height: number) {
         this.upLeft = point;
         this.upRight = Point.right(point, width);
         this.downLeft = Point.down(point, height);
@@ -12,35 +19,44 @@ class Rect {
         this.width = width;
         this.height = height;
     }
-    overlaps(other) { return !(this.upLeft > other.upRight || this.upRight < other.upLeft || this.upLeft > other.downLeft || this.downLeft < other.upLeft); }
-    center() { let p = Point.right(this.upLeft, this.width >> 1); return Point.down(p, this.height >> 1); }
-    randPos(rand) { let p = Point.right(this.upLeft, rand.nextInt(this.width)); return Point.down(p, rand.nextInt(this.height)); }
+    overlaps(other: Rect) { return !(this.upLeft > other.upRight || this.upRight < other.upLeft || this.upLeft > other.downLeft || this.downLeft < other.upLeft); }
+    center(): number { let p = Point.right(this.upLeft, this.width >> 1); return Point.down(p, this.height >> 1); }
+    randPos(rand: Random): number { let p = Point.right(this.upLeft, rand.nextInt(this.width)); return Point.down(p, rand.nextInt(this.height)); }
 }
 
 const Tile = { Floor: '.', Wall: '#', Tunnel: 'C' };
 
-class Grid {
+export class Grid {
+    end: number; // position of final stair
+    start: number; // position of initial stair
+    player: number; // player initial position
+    rooms: Map<number, string>[];
+    floor: Map<number, string>;
+    walls: Map<number, string>;
+    revealed: Map<number, number>;
+    visible: Map<number, number>;
+    pointToEntity: Map<number, Entity[]>;
+
     constructor() {
         this.end; // position of final stair
         this.start; // position of initial stair
         this.player; // player initial position
         this.rooms = [];
-        this.floor = new Map();
-        this.walls = new Map();
-        this.revealed = new Map();
-        this.visible = new Map();
-        this.pointToEntity = new Map();
+        this.floor = new Map<number, string>();
+        this.walls = new Map<number, string>();
+        this.revealed = new Map<number, number>();
+        this.visible = new Map<number, number>();
+        this.pointToEntity = new Map<number, Entity[]>();
     }
 
-    addWalls() {
+    addWalls(): void {
         const floor = this.floor;
         const walls = this.walls;
-        const Point = Point;
-        for (var pos in floor) {
+        floor.forEach((_, pos) => {
             let neighbor = Point.neighborhood(pos);
-            neighbor.forEach(n => !floor.has(n) && (walls.set(n,n)));
-        }
-        for (var pos in walls) {
+            neighbor.forEach(n => !floor.has(n) && (walls.set(n, Tile.Wall)));
+        });
+        walls.forEach((_, pos) => {
             let mask = 0;
             if (walls.has(Point.up(pos))) { mask += 1; }
             if (walls.has(Point.down(pos))) { mask += 2; }
@@ -64,10 +80,10 @@ class Grid {
                 case 14: walls.set(pos, '\u2566'); break; // Wall to the east, west, and north
                 case 15: walls.set(pos, '\u256C'); break;  // ╬ Wall on all sides
             }
-        }
+        });
     }
 
-    static fromRoomEmpty(pos, width, height) {
+    static fromRoomEmpty(pos: number, width: number, height: number): Grid {
         const grid = new Grid();
         grid.player = pos;
         for (let y = 0; y < height; y++) {
@@ -81,7 +97,7 @@ class Grid {
         return grid;
     }
 
-    static fromRoomBernoulli(pos, width, height, rand, prob = 0.8) {
+    static fromRoomBernoulli(pos: number, width: number, height: number, rand: Random, prob = 0.8): Grid {
         const grid = new Grid();
         grid.player = pos;
         for (let y = 0; y < height; y++) {
@@ -97,27 +113,27 @@ class Grid {
         return grid;
     }
 
-    static fromRoomPillarBernoulli(pos, width, height, rand, prob = 0.2) {
+    static fromRoomPillarBernoulli(pos: number, width: number, height: number, rand: Random, prob = 0.2): Grid {
         const grid = Grid.fromRoomEmpty(pos, width, height);
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 if (rand.nextDouble() < prob) {
                     let neighbor = Point.neighborhood(pos);
                     let index = rand.pick(neighbor);
-                    floor.delete(index);
+                    grid.floor.delete(index);
                 }
             }
         }
         return grid;
     }
 
-    static fromRoomRandomWalk(pos, rand, length = 10, iterations = 10, restart = true) {
+    static fromRoomRandomWalk(pos: number, rand: Random, length = 10, iterations = 10, restart = true): Grid {
         const grid = new Grid();
         grid.player = pos;
         let current = pos;
         for (let i = 0; i < iterations; i++) {
             restart && (current = pos);
-            grid.floor.set(current, current);
+            grid.floor.set(current, Tile.Floor);
             for (let j = 0; j < length; j++) {
                 let card = Point.cardinals(pos);
                 current = rand.pick(card);

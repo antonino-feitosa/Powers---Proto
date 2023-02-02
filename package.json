@@ -5,6 +5,8 @@
   },
   "license": "UNLICENSED",
   "scripts": {
-    "start": "node Main.js"
-  }
+    "start": "ts-node ./src/Main.ts"
+  },
+  
+  "files": ["./src"]
 }
