@@ -1,7 +1,7 @@
 
 
-let a = {x: '1', 5:4};
+let a = new Map([[4, 3]]);
 
 
 
-console.log(Object.keys(a));
+console.log(a.keys());

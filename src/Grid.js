@@ -1,32 +1,8 @@
 
 "use strict";
 
-const { range } = require('./Utils');
+const {Point} = require('./Point');
 
-class Point {
-    static width = 10000;
-    static xcenter = 5000;
-    static ycenter = 5000;
-
-    static from(x, y) { return (y + Point.ycenter) * Point.width + (x + Point.xcenter); }
-    static to2D(p) { return [p % Point.width - Point.xcenter, Math.floor(p / Point.width) - Point.ycenter]; }
-
-    static up(p, times = 1) { return p - times * Point.width; }
-    static down(p, times = 1) { return p + times * Point.width; }
-    static left(p, times = 1) { return p - times; }
-    static right(p, times = 1) { return p + times; }
-    static upLeft(p, times = 1) { return p - times - times * Point.width; }
-    static upRight(p, times = 1) { return p + times - times * Point.width; }
-    static downLeft(p, times = 1) { return p - times + times * Point.width; }
-    static downRight(p, times = 1) { return p + times + times * Point.width; }
-
-    static cardinals(p, times = 1) { return [Point.up(p, times), Point.down(p, times), Point.left(p, times), Point.right(p, times)]; }
-    static diagonals(p, times = 1) { return [Point.upLeft(p, times), Point.upRight(p, times), Point.downLeft(p, times), Point.downRight(p, times)]; }
-    static neighborhood(p, times = 1) { return [...Point.cardinals(p, times), ...Point.diagonals(p, times)]; }
-
-    static distance(a, b) { return Math.abs(a % Point.width - b % Point.width) + Math.floor(Math.abs(a - b) / Point.width); }
-    static toString(p) { return Point.to2D(p).toString() }
-}
 class Rect {
     constructor(point, width, height) {
         this.upLeft = point;
@@ -49,11 +25,11 @@ class Grid {
         this.start; // position of initial stair
         this.player; // player initial position
         this.rooms = [];
-        this.floor = {};
-        this.walls = {};
-        this.revealed = {};
-        this.visible = {};
-        this.pointToEntity = {};
+        this.floor = new Map();
+        this.walls = new Map();
+        this.revealed = new Map();
+        this.visible = new Map();
+        this.pointToEntity = new Map();
     }
 
     addWalls() {
@@ -62,31 +38,31 @@ class Grid {
         const Point = Point;
         for (var pos in floor) {
             let neighbor = Point.neighborhood(pos);
-            neighbor.forEach(n => !floor[n] && (walls[n] = n));
+            neighbor.forEach(n => !floor.has(n) && (walls.set(n,n)));
         }
         for (var pos in walls) {
             let mask = 0;
-            if (walls[Point.up(pos)]) { mask += 1; }
-            if (walls[Point.down(pos)]) { mask += 2; }
-            if (walls[Point.left(pos)]) { mask += 4; }
-            if (walls[Point.right(pos)]) { mask += 8; }
+            if (walls.has(Point.up(pos))) { mask += 1; }
+            if (walls.has(Point.down(pos))) { mask += 2; }
+            if (walls.has(Point.left(pos))) { mask += 4; }
+            if (walls.has(Point.right(pos))) { mask += 8; }
             switch (mask) {
-                case 0: walls[pos] = '\u25CB'; break; // Pillar because we can't see neighbors
-                case 1: walls[pos] = '\u2551'; break; // Wall only to the north
-                case 2: walls[pos] = '\u2551'; break; // Wall only to the south
-                case 3: walls[pos] = '\u2551'; break; // Wall to the north and south
-                case 4: walls[pos] = '\u2550'; break; // Wall only to the west
-                case 5: walls[pos] = '\u255D'; break; // Wall to the north and west
-                case 6: walls[pos] = '\u2557'; break; // Wall to the south and west
-                case 7: walls[pos] = '\u2563'; break; // Wall to the north, south and west
-                case 8: walls[pos] = '\u2550'; break; // Wall only to the east
-                case 9: walls[pos] = '\u255A'; break; // Wall to the north and east
-                case 10: walls[pos] = '\u2554'; break; // Wall to the south and east
-                case 11: walls[pos] = '\u2560'; break; // Wall to the north, south and east
-                case 12: walls[pos] = '\u2550'; break; // Wall to the east and west
-                case 13: walls[pos] = '\u2569'; break; // Wall to the east, west, and south
-                case 14: walls[pos] = '\u2566'; break; // Wall to the east, west, and north
-                case 15: walls[pos] = '\u256C'; break;  // ╬ Wall on all sides
+                case 0: walls.set(pos, '\u25CB'); break; // Pillar because we can't see neighbors
+                case 1: walls.set(pos, '\u2551'); break; // Wall only to the north
+                case 2: walls.set(pos, '\u2551'); break; // Wall only to the south
+                case 3: walls.set(pos, '\u2551'); break; // Wall to the north and south
+                case 4: walls.set(pos, '\u2550'); break; // Wall only to the west
+                case 5: walls.set(pos, '\u255D'); break; // Wall to the north and west
+                case 6: walls.set(pos, '\u2557'); break; // Wall to the south and west
+                case 7: walls.set(pos, '\u2563'); break; // Wall to the north, south and west
+                case 8: walls.set(pos, '\u2550'); break; // Wall only to the east
+                case 9: walls.set(pos, '\u255A'); break; // Wall to the north and east
+                case 10: walls.set(pos, '\u2554'); break; // Wall to the south and east
+                case 11: walls.set(pos, '\u2560'); break; // Wall to the north, south and east
+                case 12: walls.set(pos, '\u2550'); break; // Wall to the east and west
+                case 13: walls.set(pos, '\u2569'); break; // Wall to the east, west, and south
+                case 14: walls.set(pos, '\u2566'); break; // Wall to the east, west, and north
+                case 15: walls.set(pos, '\u256C'); break;  // ╬ Wall on all sides
             }
         }
     }
@@ -98,7 +74,7 @@ class Grid {
             for (let x = 0; x < width; x++) {
                 let p = Point.right(pos, x);
                 p = Point.down(p, y);
-                grid.floor[p] = Tile.Floor;
+                grid.floor.set(p, Tile.Floor);
             }
         }
         grid.rooms.push(grid.floor);
@@ -113,7 +89,7 @@ class Grid {
                 if (rand.nextDouble() < prob) {
                     let p = Point.right(pos, x);
                     p = Point.down(p, y);
-                    grid.floor[p] = Tile.Floor;
+                    grid.floor.set(p, Tile.Floor);
                 }
             }
         }
@@ -128,7 +104,7 @@ class Grid {
                 if (rand.nextDouble() < prob) {
                     let neighbor = Point.neighborhood(pos);
                     let index = rand.pick(neighbor);
-                    delete floor[index];
+                    floor.delete(index);
                 }
             }
         }
@@ -141,11 +117,11 @@ class Grid {
         let current = pos;
         for (let i = 0; i < iterations; i++) {
             restart && (current = pos);
-            grid.floor[current] = current;
+            grid.floor.set(current, current);
             for (let j = 0; j < length; j++) {
                 let card = Point.cardinals(pos);
                 current = rand.pick(card);
-                grid.floor[current] = Tile.Floor;
+                grid.floor.set(current, Tile.Floor);
             }
         }
         grid.rooms.push(grid.floor);
@@ -201,6 +177,5 @@ class Grid {
 module.exports = {
     Tile,
     Grid,
-    Rect,
-    Point
+    Rect
 }

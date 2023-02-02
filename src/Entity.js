@@ -2,6 +2,7 @@
 "use strict";
 
 const { CombatEvent, CombatStatus } = require('./Combat');
+const {Point} = require('./Point');
 
 class Render {
     constructor(glyph, fg = 'white', bg = 'black') {
@@ -18,8 +19,8 @@ class Entity {
         this.render = render;
 
         const pointToEntity = game.grid.pointToEntity;
-        !pointToEntity[pos] && (pointToEntity[pos] = []);
-        pointToEntity[pos].push(this);
+        !pointToEntity.has(pos) && pointToEntity.set(pos, []);
+        pointToEntity.get(pos).push(this);
     }
     update() { };
 }
@@ -36,7 +37,6 @@ class Item extends Entity {
         let inc = Math.min(target.combatStatus.hp + 2, target.combatStatus.maxHP);
         target.combatStatus.hp = inc;
         this.game.ui.printLog(`The ${target.name} was healed!`);
-        this.game.passiveEntities = this.game.passiveEntities.filter(x => x !== this);
     }
 }
 
@@ -53,10 +53,10 @@ class Moveable extends Entity {
         const pointToEntity = grid.pointToEntity;
 
         if (!game.isOpaque(dest)) {
-            if (this.canOverlap(pointToEntity[dest])) {
-                pointToEntity[dest] === undefined && (pointToEntity[dest] = []);
-                pointToEntity[entity.pos] = pointToEntity[entity.pos].filter(e => e !== this);
-                pointToEntity[dest].push(this);
+            if (this.canOverlap(pointToEntity.has(dest))) {
+                !pointToEntity.has(dest) && pointToEntity.set(dest, []);
+                pointToEntity.set(entity.pos, pointToEntity.get(entity.pos).filter(e => e !== this));
+                pointToEntity.get(dest).push(this);
                 entity.pos = dest;
             }
         }
@@ -94,7 +94,7 @@ class Unit extends Moveable {
         this.damage = [];
         if (this.combatStatus.hp <= 0) {
             game.ui.printLog(`The ${this.name} Dies!`);
-            pointToEntity[this.pos] = pointToEntity[this.pos].filter(e => e !== this);
+            pointToEntity.set(this.pos, pointToEntity.get(this.pos).filter(e => e !== this));
             this.isDead = true;
         }
     }
@@ -104,13 +104,13 @@ class Unit extends Moveable {
         const grid = game.grid;
         const point = this.pos;
         const pointToEntity = grid.pointToEntity;
-        if (pointToEntity[point].length > 1) {
-            pointToEntity[point].filter(x => x instanceof Item).forEach(item => {
+        if (pointToEntity.get(point).length > 1) {
+            pointToEntity.get(point).filter(x => x instanceof Item).forEach(item => {
                 item.inInventory = true;
                 this.inventory.push(item);
                 game.ui.printLog(`The ${this.name} picked up: ${item.name}`);
             });
-            pointToEntity[point] = pointToEntity[point].filter(x => x instanceof Item);
+            pointToEntity.set(point, pointToEntity.get(point).filter(x => x instanceof Item));
         }
     }
 
