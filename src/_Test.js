@@ -1,6 +1,7 @@
 
 
-let vet = [];
-vet[0] = 0;
+let a = {x: '1', 5:4};
 
-console.log(!vet[0]);
+
+
+console.log(Object.keys(a));

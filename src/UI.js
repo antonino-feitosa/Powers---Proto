@@ -196,10 +196,10 @@ class UI {
     drawLog() {
         const context = this.context;
         const messages = this.log.messages;
-        let numToDisplay = Math.min(messages.length, context.height);
+        let numToDisplay = Math.min(messages.length, context._height);
         for (let i = 0, index = messages.length - 1; i < numToDisplay; i++, index--) {
             let dy = numToDisplay < this.numLinesBottom - 1 ? numToDisplay - this.numLinesBottom - 1 : 0;
-            this.fillMessage(messages[index], 0, context.height - 1 - i + dy, 'irish green');
+            this.fillMessage(messages[index], 0, context._height - 1 - i + dy, 'irish green');
         }
     }
 
@@ -207,12 +207,12 @@ class UI {
         const context = this.context;
         let start = '\u250D\u2501';
         let middle = this.alertMessage ? ' ' + this.alertMessage + ' ' : '';
-        let end = '\u2501'.repeat(context.width - start.length - middle.length - 1) + '\u2511';
+        let end = '\u2501'.repeat(context._width - start.length - middle.length - 1) + '\u2511';
 
         let index = 0;
-        index = this.fillMessage(start, index, context.height - 4);
-        index = this.fillMessage(middle, index, context.height - 4, 'yellow');
-        index = this.fillMessage(end, index, context.height - 4);
+        index = this.fillMessage(start, index, context._height - 4);
+        index = this.fillMessage(middle, index, context._height - 4, 'yellow');
+        index = this.fillMessage(end, index, context._height - 4);
 
         const messages = this.log.messages;
         const count = this.log.index;
@@ -222,21 +222,21 @@ class UI {
             let num = numToDisplay - this.numLinesBottom + 1;
             num = this.formatNumber(num, 2);
             let str = ` more ${num} ... `;
-            this.fillMessage(str, context.width - (str.length + 2), context.height - 4);
+            this.fillMessage(str, context._width - (str.length + 2), context._height - 4);
             numToDisplay = this.numLinesBottom - 1;
         }
         for (let i = 0, index = messages.length - 1; i < numToDisplay; i++, index--) {
             let dy = numToDisplay < 3 ? numToDisplay - 3 : 0;
-            this.fillMessage(messages[index], 0, context.height - 1 - i + dy, 'white');
+            this.fillMessage(messages[index], 0, context._height - 1 - i + dy, 'white');
         }
         this.log.processed = messages.length;
     }
 
     drawRightBar() {
         const context = this.context;
-        const barX = context.width - this.numColsRight;
+        const barX = context._width - this.numColsRight;
         context.render(barX, 0, '\u2503');
-        for (let i = 1; i < context.height - this.numLinesBottom; i++) {
+        for (let i = 1; i < context._height - this.numLinesBottom; i++) {
             context.render(barX, i, '\u2503');
         }
 
@@ -306,7 +306,7 @@ class UI {
                 this.fillMessage(options[i], x + 1, count, index === i ? 'green' : 'white');
             }
         }
-        this.fillMessage('(y) OK  (b) Cancel', x + 1, y + height - 2);
+        this.fillMessage('(y) OK  (esc) Cancel', x + 1, y + height - 2);
     }
 
     drawBox(title, x, y, width, height) {
@@ -325,7 +325,7 @@ class UI {
     }
 
     fillMessage(msg, index, height, fg = 'white', bg = 'black') {
-        let width = Math.min(this.context.width, msg.length);
+        let width = Math.min(this.context._width, msg.length);
         for (let c = 0; c < width; c++) {
             this.context.render(c + index, height, msg[c], fg, bg);
         }

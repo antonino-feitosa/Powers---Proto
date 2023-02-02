@@ -3,7 +3,7 @@
 
 const { Context } = require('./Context');
 const { Monster, Player, Item, Render } = require('./Entity');
-const { Grid, Tile } = require('./Grid');
+const { Point, Grid, Tile } = require('./Grid');
 const { DijkstraMap } = require('./DijkstraMap');
 const { Random } = require('./Random');
 const { Viewer } = require('./View');
@@ -12,8 +12,8 @@ const { UI } = require('./UI');
 
 class Game {
 
-    constructor(width, height, seed = 1, hasFog = true) {
-        this.clearBuffer = true;
+    constructor(width, height, seed = 1, hasFog = false) {
+        this.clearBuffer = false;
 
         this.width = width;
         this.height = height;
@@ -22,24 +22,20 @@ class Game {
         this.depth = 1;
         this.viewRange = 6;
         this.turnCount = 0;
+        this.camera = {x: 0, y:0};
 
         this.visibleEntities = [];
-        this.context = new Context(this.width + 20, this.height + 4);
+        this.context = new Context(this.width, this.height);
         this.ui = new UI(this, 4, 15);
 
         this.start();
     }
 
-    isOpaque(p) { return this.grid.tiles[p] === Tile.Wall; }
+    isOpaque(p) { return this.grid.floor[p] === Tile.Wall; }
     canOverlap(positionList) { return !positionList || positionList.reduce((can, e) => can && (e instanceof Item), true); }
-    moveCost(u, v) {
-        let [x1, y1] = this.grid.Point.to2D(u);
-        let [x2, y2] = this.grid.Point.to2D(v);
-        //return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
-        return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
-    }
+    moveCost(u, v) { return Point.distance(u, v); }
     neighborhood(p) {
-        let ne = this.grid.Point.neighborhood(p);
+        let ne = Point.neighborhood(p);
         ne = ne.filter(n => !this.isOpaque(n));
         return ne;
     }
@@ -47,15 +43,14 @@ class Game {
     start() {
         //this.grid = Grid.fromBernoulli(30, 20, rand);
         //this.grid = Grid.fromRandom(this.width, this.height, this.rand, 100);
-        this.grid = Grid.fromEmpty(20, 20);
+        this.grid = Grid.fromRoomEmpty(0, 20, 20);
 
         let startRoom = this.rand.pick(this.grid.rooms);
-        let startPosition = startRoom.center();
-        let startIndex = this.grid.Point.from(startPosition[0], startPosition[1]);
+        let startIndex = parseInt(this.rand.pick(Object.keys(startRoom)));
         this.player = new Player(this, startIndex);
 
         let neighborhood = (p) => this.neighborhood(p).filter(p => this.canOverlap(this.grid.pointToEntity[p]));
-        this.viewer = new Viewer(this.viewRange, startIndex, this.grid.Point, this.isOpaque.bind(this), 'circle');
+        this.viewer = new Viewer(this.viewRange, startIndex, Point, this.isOpaque.bind(this), 'circle');
         this.heatMap = new DijkstraMap(new Map(), this.rand, neighborhood, this.moveCost.bind(this));
 
         new Item(this, startIndex - 2, new Render('i', 'white', 'green'), 'Heal Potion');
@@ -83,15 +78,13 @@ class Game {
 
     addMonsters(startRoom) {
         const grid = this.grid;
-        const Point = grid.Point;
         const rand = this.rand;
         let names = ['orc', 'dwarf', 'human', 'elf', 'goblin', 'troll'];
         grid.rooms.filter(r => r !== startRoom).forEach(room => {
             let maxMonsters = Math.ceil((room.x1 - room.x2) * (room.y1 - room.y2) / 16);
             let count = 1;
             range(0, rand.nextInt(maxMonsters), () => {
-                let [rx, ry] = room.randPos(rand);
-                let pos = Point.from(rx, ry);
+                let pos = parseInt(this.rand.pick(Object.keys(room)));
                 if (!grid.pointToEntity[pos]) {
                     new Monster(rand.pick(names) + ' #' + count++, this, pos);
                 }
@@ -116,9 +109,9 @@ class Game {
         const grid = game.grid;
         const viewer = game.viewer;
         const player = game.player;
-        viewer.isDirty = viewer.isDirty || viewer.center != player.point;
+        viewer.isDirty = viewer.isDirty || viewer.center != player.pos;
         if (viewer.isDirty) {
-            viewer.center = player.point;
+            viewer.center = player.pos;
             viewer.radius = game.viewRange;
             
             grid.visible = [];
@@ -128,6 +121,7 @@ class Game {
                     grid.revealed[pos] = pos;
                 }
             });
+            console.log(viewer.lightMap);
             viewer.isDirty = false;
         }
     }
@@ -137,7 +131,7 @@ class Game {
         const viewer = this.viewer;
         const heatMap = this.heatMap;
         const player = this.player;
-        heatMap.sources = new Map([[player.point, 0]]);
+        heatMap.sources = new Map([[player.pos, 0]]);
         heatMap.calculate(grid.visible);
         heatMap.makeRangeMap(withRange, viewer.radius);
         heatMap.makeFleeMap(withFlee);
@@ -163,36 +157,47 @@ class Game {
     }
 
     draw() {
-        const player = this.player;
-        const context = this.context;
+        const game = this;
+        const player = game.player;
+        const context = game.context;
+        const camera = game.camera;
+        let [cx, cy] = Point.to2D(player.pos);
+        camera.x = cx - Math.floor(context.width/2);
+        camera.y = cy - Math.floor(context.height/2);
 
         context.clear();
-        this.drawGrid();
-        this.visibleEntities.forEach(m => m.draw());
-        player.draw();
+        game.drawGrid(camera.x, camera.y);
+        game.visibleEntities.forEach(m => {
+            let [x,y] = Point.to2D(m.pos);
+            context.render(x - camera.x, y - camera.y, m.render.glyph, m.render.fg, m.render.bg);
+        });
 
-        this.ui.draw();
+        game.ui.draw();
         context.build();
     }
 
-    drawGrid() {
-        if (this.hasFog) {
-            this.grid.revealed.forEach((index) => {
-                let [x, y] = this.grid.Point.to2D(index);
-                let glyph = this.grid.tiles[index];
-                this.context.render(x, y, glyph, 'grey', 'black');
-            });
+    drawGrid(xoff, yoff) {
+        const game = this;
+        const grid = game.grid;
+        const context = game.context;
 
-            this.grid.visible.forEach((index) => {
-                let [x, y] = this.grid.Point.to2D(index);
-                let glyph = this.grid.tiles[index];
-                this.context.render(x, y, glyph, 'green', 'black');
-            });
-        } else {
-            this.grid.tiles.forEach((glyph, index) => {
-                let [x, y] = this.grid.Point.to2D(index);
-                this.context.render(x, y, glyph, 'green', 'black');
-            });
+        for(let y=0;y<context.height;y++){
+            for(let x=0;x<context.width;x++){
+                let pos = Point.from(xoff + x, yoff + y);
+                if(this.hasFog){
+                    if(grid.revealed[pos]){
+                        grid.floor[pos] && context.render(x, y, grid.floor[pos], 'grey', 'black');
+                        grid.walls[pos] && context.render(x, y, grid.walls[pos], 'grey', 'black');
+                    }
+                    if(grid.visible[pos]){
+                        grid.floor[pos] && context.render(x, y, grid.floor[pos], 'green', 'black');
+                        grid.walls[pos] && context.render(x, y, grid.walls[pos], 'green', 'black');
+                    }
+                } else {
+                    grid.floor[pos] && context.render(x, y, grid.floor[pos], 'green', 'black');
+                    grid.walls[pos] && context.render(x, y, grid.walls[pos], 'green', 'black');
+                }
+            }
         }
     }
 }

@@ -14,7 +14,7 @@ class Render {
 class Entity {
     constructor(game, pos, render) {
         this.game = game;
-        this.point = pos;
+        this.pos = pos;
         this.render = render;
 
         const pointToEntity = game.grid.pointToEntity;
@@ -22,16 +22,6 @@ class Entity {
         pointToEntity[pos].push(this);
     }
     update() { };
-
-    draw() {
-        const game = this.game;
-        const grid = game.grid;
-        const context = game.context;
-        const render = this.render;
-
-        let [x, y] = grid.Point.to2D(this.point);
-        context.render(x, y, render.glyph, render.fg, render.bg);
-    }
 }
 
 class Item extends Entity {
@@ -48,10 +38,6 @@ class Item extends Entity {
         this.game.ui.printLog(`The ${target.name} was healed!`);
         this.game.passiveEntities = this.game.passiveEntities.filter(x => x !== this);
     }
-
-    draw() {
-        !this.inInventory && super.draw();
-    }
 }
 
 class Moveable extends Entity {
@@ -60,20 +46,18 @@ class Moveable extends Entity {
         return !positionList || positionList.reduce((can, e) => can && (e instanceof Item), true);
     }
 
-    tryMove(x, y) {
+    tryMove(dest) {
         const entity = this;
         const game = this.game;
         const grid = game.grid;
         const pointToEntity = grid.pointToEntity;
 
-        let [ox, oy] = grid.Point.to2D(entity.point);
-        let dest = grid.Point.from(x + ox, y + oy);
-        if (grid.Point.is2DValid(x + ox, y + oy) && !game.isOpaque(dest)) {
+        if (!game.isOpaque(dest)) {
             if (this.canOverlap(pointToEntity[dest])) {
                 pointToEntity[dest] === undefined && (pointToEntity[dest] = []);
-                pointToEntity[entity.point] = pointToEntity[entity.point].filter(e => e !== this);
+                pointToEntity[entity.pos] = pointToEntity[entity.pos].filter(e => e !== this);
                 pointToEntity[dest].push(this);
-                entity.point = dest;
+                entity.pos = dest;
             }
         }
     }
@@ -110,7 +94,7 @@ class Unit extends Moveable {
         this.damage = [];
         if (this.combatStatus.hp <= 0) {
             game.ui.printLog(`The ${this.name} Dies!`);
-            pointToEntity[this.point] = pointToEntity[this.point].filter(e => e !== this);
+            pointToEntity[this.pos] = pointToEntity[this.pos].filter(e => e !== this);
             this.isDead = true;
         }
     }
@@ -118,7 +102,7 @@ class Unit extends Moveable {
     processPick() {
         const game = this.game;
         const grid = game.grid;
-        const point = this.point;
+        const point = this.pos;
         const pointToEntity = grid.pointToEntity;
         if (pointToEntity[point].length > 1) {
             pointToEntity[point].filter(x => x instanceof Item).forEach(item => {
@@ -130,13 +114,7 @@ class Unit extends Moveable {
         }
     }
 
-    inRange(pos, range = 0) {
-        const game = this.game;
-        const grid = game.grid;
-        let [px, py] = grid.Point.to2D(this.point);
-        let [ox, oy] = grid.Point.to2D(pos);
-        return Math.abs(px - ox) + Math.abs(py - oy) <= range;
-    }
+    inRange(pos, range = 0) { return Point.distance(this.pos, pos) <= range; }
 }
 
 class Player extends Unit {
@@ -166,18 +144,15 @@ class Monster extends Unit {
         this.processPick();
 
         const game = this.game;
-        const grid = game.grid;
         const player = game.player;
         const heatMap = game.heatMap;
 
-        if(this.inRange(player.point)){
+        if (this.inRange(player.point)) {
             player.damage.push(new CombatEvent(this, 5));
             game.ui.printLog(`The ${this.name} Attacks!`);
         } else {
-            let moveIndex = heatMap.fleeMap.chase(this.point);
-            let [dx, dy] = grid.Point.to2D(moveIndex);
-            let [x, y] = grid.Point.to2D(this.point);
-            this.tryMove(dx - x, dy - y);
+            let pos = heatMap.fleeMap.chase(this.point);
+            this.tryMove(pos);
             game.rand.nextDouble() < 0.3 && game.ui.printLog(`${this.name} shouts a insult!`);
         }
     }

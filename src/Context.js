@@ -8,6 +8,8 @@ class Context {
     constructor(width = 80, height = 50) {
         this.width = width;
         this.height = height;
+        this._width = width + 20;
+        this._height = height + 4;
 
         this.background = 'black';
         this.foreground = 'white';
@@ -16,9 +18,9 @@ class Context {
 
         let bg = Context._applyColor(' ', this.foreground, this.background);
         this.matrix = [];
-        range(0, height, _ => {
+        range(0, this._height, _ => {
             let row = [];
-            range(0, width, () => row.push(bg));
+            range(0, this._width, () => row.push(bg));
             this.matrix.push(row);
         });
     }
@@ -33,7 +35,7 @@ class Context {
     }
 
     build() {
-        this.clearBuffer && process.stdout.write(`\x1b[${this.height + 1}A`); // move to start
+        this.clearBuffer && process.stdout.write(`\x1b[${this._height + 1}A`); // move to start
         this.matrix.forEach(row => console.log(row.join('')));
         this.clear();
     }

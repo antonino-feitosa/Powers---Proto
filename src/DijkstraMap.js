@@ -56,6 +56,7 @@ class DijkstraMap {
         return neighbor[index];
     }
 
+    //TODO
     makeRangeMap(force = -1.2, range = 6) {
         let map = new DijkstraMap(this.sources, this.rand, this.neighborhood, this.cost);
         this.dist.forEach((val, key) => {
