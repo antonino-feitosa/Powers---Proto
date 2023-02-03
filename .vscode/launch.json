@@ -7,11 +7,15 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}\\Main.js"
+            "name": "Debug with ts-node",
+
+            "runtimeExecutable": "node",
+            "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
+
+            "args": ["src/Main.ts"],
+        
+            "sourceMaps": true,
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

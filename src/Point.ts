@@ -20,6 +20,6 @@ export class Point {
     static diagonals(p: number, times: number = 1): number[] { return [Point.upLeft(p, times), Point.upRight(p, times), Point.downLeft(p, times), Point.downRight(p, times)]; }
     static neighborhood(p: number, times: number = 1): number[] { return [...Point.cardinals(p, times), ...Point.diagonals(p, times)]; }
 
-    static distance(a: number, b: number): number { return Math.abs(a % Point.width - b % Point.width) + Math.floor(Math.abs(a - b) / Point.width); }
+    static distance(a: number, b: number): number { return Math.max(Math.abs(a % Point.width - b % Point.width), Math.floor(Math.abs(a - b) / Point.width)); }
     static toString(p: number): string { return Point.to2D(p).toString() }
 }

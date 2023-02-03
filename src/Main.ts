@@ -57,14 +57,13 @@ export class Game {
         let startIndex = this.rand.pick(positions);
         this.player = new Player(this, startIndex);
 
+        this.viewer = new Viewer(this.viewRange, startIndex, this.isOpaque.bind(this), 'square');
         let neighborhood = (p: number) => this.neighborhood(p).filter(p => this.canOverlap(this.grid.pointToEntity.get(p) || []));
-        this.viewer = new Viewer(this.viewRange, startIndex, this.isOpaque.bind(this), 'circle');
-        this.heatMap = new DijkstraMap(new Map(), this.rand, neighborhood, this.moveCost.bind(this));
+        this.heatMap = new DijkstraMap(this.rand, neighborhood, this.moveCost.bind(this));
 
         new Item(this, startIndex - 2, new Render('i', 'white', 'green'), 'Heal Potion');
-        console.log(Point.to2D(this.player.pos));
 
-        this.addMonsters(startRoom);
+        this.addMonsters();
         this.startContext();
     }
 
@@ -83,16 +82,17 @@ export class Game {
         });
     }
 
-    addMonsters(startRoom: Map<number, String>): void {
+    addMonsters(): void {
         const grid = this.grid;
         const rand = this.rand;
+        const player = this.player;
         let names = ['orc', 'dwarf', 'human', 'elf', 'goblin', 'troll'];
-        grid.rooms.filter(r => r !== startRoom).forEach(room => {
+        grid.rooms.forEach(room => {
             let maxMonsters = Math.floor(room.size / 16);
             range(0, rand.nextInt(maxMonsters), (id) => {
                 let positions = Array.from(room.keys());
                 let pos = rand.pick(positions);
-                if (!grid.pointToEntity.has(pos)) {
+                if (Point.distance(pos, player.pos) > this.viewRange && !grid.pointToEntity.has(pos)) {
                     new Monster(rand.pick(names) + ' #' + id, this, pos);
                 }
             });
@@ -134,13 +134,15 @@ export class Game {
 
     processMotion(withRange = -1.2, withFlee = -1.2): void {
         const grid = this.grid;
-        const viewer = this.viewer;
         const heatMap = this.heatMap;
         const player = this.player;
-        heatMap.sources = new Map([[player.pos, 0]]);
+        heatMap.clear();
+        heatMap.addAttractionPoint(player.pos);
         heatMap.calculate(grid.visible);
-        heatMap.makeRangeMap(withRange, viewer.radius);
+        heatMap.makeRangeMap(withRange);
         heatMap.makeFleeMap(withFlee);
+
+        //console.log(heatMap.fleeMap.dist);
     }
 
     processTurn(): void {
@@ -184,13 +186,33 @@ export class Game {
         context.clear();
         game.drawGrid(camera.x, camera.y);
         game.visibleEntities.forEach(m => {
-            let [x, y] = Point.to2D(m.pos);
-            if (x >= camera.x && y >= camera.y && x < camera.x + context.width && y < camera.y + context.height)
-                context.render(x - camera.x, y - camera.y, m.render.glyph, m.render.fg, m.render.bg);
+            if(m.isVisible){
+                let [x, y] = Point.to2D(m.pos);
+                if (x >= camera.x && y >= camera.y && x < camera.x + context.width && y < camera.y + context.height)
+                    context.render(x - camera.x, y - camera.y, m.render.glyph, m.render.fg, m.render.bg);
+            }
         });
+
+        //this.drawHeatMap(camera.x, camera.y);
 
         game.ui.draw();
         context.build();
+    }
+
+    drawHeatMap(xoff: number, yoff: number){
+        const game = this;
+        const context = game.context;
+        const heatMap = game.heatMap;
+
+        for (let y = 0; y < context.height; y++) {
+            for (let x = 0; x < context.width; x++) {
+                let pos = Point.from(xoff + x, yoff + y);
+                let val = heatMap.fleeMap.dist.get(pos);
+                if(val !== undefined){
+                    context.render(x, y, val.toFixed(1) + ' ', 'green', 'black');
+                }
+            }
+        }
     }
 
     drawGrid(xoff: number, yoff: number) {

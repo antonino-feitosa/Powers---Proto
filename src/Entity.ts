@@ -41,11 +41,13 @@ export class Entity {
     game: Game;
     pos: number;
     render: Render;
+    isVisible: boolean;
 
     constructor(game: Game, pos: number, render: Render) {
         this.game = game;
         this.pos = pos;
         this.render = render;
+        this.isVisible = true;
 
         const pointToEntity = game.grid.pointToEntity;
         const list = pointToEntity.get(pos);
@@ -150,10 +152,11 @@ class Unit extends Entity {
         if (listCurrent.length > 1) {
             listCurrent.filter((x: Entity) => x instanceof Item).forEach((item: Item) => {
                 item.inInventory = true;
+                item.isVisible = false;
                 this.inventory.push(item);
                 game.ui.printLog(`The ${this.name} picked up: ${item.name}`);
             });
-            pointToEntity.set(point, listCurrent.filter(x => x instanceof Item));
+            pointToEntity.set(point, listCurrent.filter(x => !(x instanceof Item)));
         }
     }
 
