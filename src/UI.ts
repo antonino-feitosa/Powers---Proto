@@ -1,10 +1,49 @@
 
-import { Point } from './Point';
-import { Game } from './Main';
-import { Context } from './Context';
+import { Context, Render } from './Context';
 import { Player } from './Entity';
+import { Game } from './Main';
+import { Point } from './Point';
 
 const UIState = { Idle: 0, Log: 1, Invetory: 2, Cursor: 3, TextInput: 4, Messages: 5, ToolTip: 6 };
+
+export class UIMessage {
+    current: number = 0;
+    sequence: string[] = [];
+    call: () => void = () => { };
+}
+
+export class UITooltip {
+    title: string = '';
+    text: string = '';
+    x: number = 0;
+    y: number = 0
+    call: () => void = () => { };
+}
+
+export class UIInput {
+    text: string = '';
+    call = (text: string) => { };
+}
+
+export class UICursorSelect {
+    x = 0;
+    y = 0;
+    canMoveTo = (x: number, y: number) => true;
+    call = (x: number, y: number) => { }
+}
+
+export class UIMessageSelect {
+    title: string = '';
+    options: string[] = [];
+    index: number = -1;
+    call: (index: number) => void = () => { };
+}
+
+export class UILog {
+    messages: string[] = [];
+    index: number = 0;
+    processed: number = 0;
+}
 
 export class UI {
     game: Game;
@@ -15,12 +54,12 @@ export class UI {
     numLinesBottom: number;
 
     alertMessage = '';
-    messages: { current: number, sequence: string[], call: () => void } = { current: 0, sequence: [], call: () => { } };
-    tooltip = { title: '', text: '', x: 0, y: 0, call: () => { } }
-    textInput = { text: '', call: (text: String) => { } };
-    cursorSelect = { x: 0, y: 0, canMoveTo: (x: number, y: number) => true, call: (x: number, y: number) => { } };
-    selection: { title: string, options: string[], index: number, call: (index: number) => void } = { title: 'select', options: [], index: 0, call: () => { } };
-    log: { messages: string[], index: number, processed: number } = { messages: [], index: 0, processed: 0 };
+    messages = new UIMessage();
+    tooltip = new UITooltip();
+    textInput = new UIInput();
+    cursorSelect = new UICursorSelect();
+    selection = new UIMessageSelect();
+    log = new UILog();
 
     constructor(game: Game, numLinesBottom = 4, numColsRight = 15) {
         this.game = game;
@@ -146,26 +185,17 @@ export class UI {
         this.state = UIState.TextInput;
     }
 
-    inputCursor(x: number, y: number, canMoveTo: (pos: number) => boolean, call: () => {}) {
-        this.cursorSelect.x = x;
-        this.cursorSelect.y = y;
-        this.cursorSelect.canMoveTo = canMoveTo;
-        this.cursorSelect.call = call;
+    inputCursor(cursorSelect: UICursorSelect) {
+        this.cursorSelect = cursorSelect;
     }
 
-    printMessage(messages: string[], call: () => {}) {
-        this.messages.current = 0;
-        this.messages.sequence = messages;
-        this.messages.call = call;
+    printMessage(messages: UIMessage) {
+        this.messages = messages;
         this.state = UIState.Messages;
     }
 
-    printToolTip(title: string, x: number, y: number, text: string, call: () => {}) {
-        this.tooltip.title = title;
-        this.tooltip.x = x;
-        this.tooltip.y = y;
-        this.tooltip.text = text;
-        this.tooltip.call = call;
+    printToolTip(tooltip: UITooltip) {
+        this.tooltip = tooltip;
         this.state = UIState.ToolTip;
     }
 
@@ -178,11 +208,8 @@ export class UI {
         this.log.messages.push(` Turn ${index}: ` + message);
     }
 
-    printSelection(title: string, options: string[], call: () => {}): void {
-        this.selection.title = title;
-        this.selection.index = 0;
-        this.selection.options = options;
-        this.selection.call = call;
+    printSelection(selection: UIMessageSelect): void {
+        this.selection = selection;
     }
 
     draw(): void {
@@ -248,9 +275,10 @@ export class UI {
     drawRightBar(): void {
         const context = this.context;
         const barX = context._width - this.numColsRight;
-        context.render(barX, 0, '\u2503', 'white', 'black');
+        const render = new Render('\u2503', 'white', 'black');
+        context.render(barX, 0, render);
         for (let i = 1; i < context._height - this.numLinesBottom; i++) {
-            context.render(barX, i, '\u2503', 'white', 'black');
+            context.render(barX, i, render);
         }
 
         let turnMessage = 'Turn: ' + this.formatNumber(this.game.turnCount, 6)
@@ -295,7 +323,8 @@ export class UI {
     drawCursorSelect(): void {
         let x = this.cursorSelect.x;
         let y = this.cursorSelect.y;
-        this.context.render(x, y, ' ', 'white', 'green');
+        let render = new Render(' ', 'white', 'green');
+        this.context.render(x, y, render);
     }
 
     drawSelect(): void {
@@ -330,17 +359,20 @@ export class UI {
         this.fillMessage(str, x, y);
         str = '\u2514' + '\u2500'.repeat(width - 1) + '\u2518';
         this.fillMessage(str, x, y + height - 1);
+        const render = new Render('\u2502', 'white', 'black');
         for (let i = 1; i < height - 1; i++) {
-            context.render(x, y + i, '\u2502', 'white', 'black');
+            context.render(x, y + i, render);
             this.fillMessage(' '.repeat(width - 2), x + 1, y + i);
-            context.render(x + width, y + i, '\u2502', 'white', 'black');
+            context.render(x + width, y + i, render);
         }
     }
 
     fillMessage(msg: string, index: number, height: number, fg = 'white', bg = 'black'): number {
         let width = Math.min(this.context._width, msg.length);
+        const render = new Render('', fg, bg);
         for (let c = 0; c < width; c++) {
-            this.context.render(c + index, height, msg[c], fg, bg);
+            render.glyph = msg[c];
+            this.context.render(c + index, height, render);
         }
         return index + width;
     }

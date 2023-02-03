@@ -1,16 +1,16 @@
 
-import { Context } from "./Context";
-import { Monster, Player, Item, Render, Entity } from "./Entity";
+import { Context, Render } from "./Context";
+import { Monster, Player, Item, Entity } from "./Entity";
 import { Point } from "./Point";
 import { Grid } from "./Grid";
 import { DijkstraMap } from "./DijkstraMap";
 import { Random } from "./Random";
 import { Viewer } from "./View";
 import { UI } from "./UI";
-import { range } from "./Utils";
 
 export class Game {
 
+    static worldCenter = Point.from(5000, 5000);
     clearBuffer = false;
 
     width: number;
@@ -50,18 +50,18 @@ export class Game {
     start(): void {
         //this.grid = Grid.fromBernoulli(30, 20, rand);
         //this.grid = Grid.fromRandom(this.width, this.height, this.rand, 100);
-        this.grid = Grid.fromRoomEmpty(Point.from(0, 0), 20, 20);
+        this.grid = Grid.fromRoomEmpty(Game.worldCenter, 20, 20, this.rand);
 
         let startRoom = this.rand.pick(this.grid.rooms);
         let positions = Array.from(startRoom.keys());
         let startIndex = this.rand.pick(positions);
         this.player = new Player(this, startIndex);
 
-        this.viewer = new Viewer(this.viewRange, startIndex, this.isOpaque.bind(this), 'square');
+        this.viewer = new Viewer(this.viewRange, startIndex, this.isOpaque.bind(this));
         let neighborhood = (p: number) => this.neighborhood(p).filter(p => this.canOverlap(this.grid.pointToEntity.get(p) || []));
         this.heatMap = new DijkstraMap(this.rand, neighborhood, this.moveCost.bind(this));
 
-        new Item(this, startIndex - 2, new Render('i', 'white', 'green'), 'Heal Potion');
+        new Item('Heal Potion', this, startIndex - 2);
 
         this.addMonsters();
         this.startContext();
@@ -89,13 +89,14 @@ export class Game {
         let names = ['orc', 'dwarf', 'human', 'elf', 'goblin', 'troll'];
         grid.rooms.forEach(room => {
             let maxMonsters = Math.floor(room.size / 16);
-            range(0, rand.nextInt(maxMonsters), (id) => {
+            let numOfMonster = rand.nextInt(maxMonsters);
+            for (let id = 0; id < numOfMonster; id++) {
                 let positions = Array.from(room.keys());
                 let pos = rand.pick(positions);
                 if (Point.distance(pos, player.pos) > this.viewRange && !grid.pointToEntity.has(pos)) {
                     new Monster(rand.pick(names) + ' #' + id, this, pos);
                 }
-            });
+            }
         });
     }
 
@@ -186,10 +187,10 @@ export class Game {
         context.clear();
         game.drawGrid(camera.x, camera.y);
         game.visibleEntities.forEach(m => {
-            if(m.isVisible){
+            if (m.isVisible) {
                 let [x, y] = Point.to2D(m.pos);
                 if (x >= camera.x && y >= camera.y && x < camera.x + context.width && y < camera.y + context.height)
-                    context.render(x - camera.x, y - camera.y, m.render.glyph, m.render.fg, m.render.bg);
+                    context.render(x - camera.x, y - camera.y, m.render);
             }
         });
 
@@ -199,17 +200,18 @@ export class Game {
         context.build();
     }
 
-    drawHeatMap(xoff: number, yoff: number){
+    drawHeatMap(xoff: number, yoff: number) {
         const game = this;
         const context = game.context;
         const heatMap = game.heatMap;
-
+        const render = new Render(' ', 'green', 'black');
         for (let y = 0; y < context.height; y++) {
             for (let x = 0; x < context.width; x++) {
                 let pos = Point.from(xoff + x, yoff + y);
-                let val = heatMap.fleeMap.dist.get(pos);
-                if(val !== undefined){
-                    context.render(x, y, val.toFixed(1) + ' ', 'green', 'black');
+                let val = heatMap.dist.get(pos);
+                if (val !== undefined) {
+                    render.glyph = val.toFixed(1);
+                    context.render(x, y, render);
                 }
             }
         }
@@ -220,28 +222,26 @@ export class Game {
         const grid = game.grid;
         const context = game.context;
 
+        const renderRevealed = new Render(' ', 'grey', 'black');
+        const renderVisible = new Render(' ', 'green', 'black');
         for (let y = 0; y < context.height; y++) {
             for (let x = 0; x < context.width; x++) {
                 let pos = Point.from(xoff + x, yoff + y);
-                if (this.hasFog) {
-                    let glyph;
-                    if (grid.revealed.has(pos)) {
-                        glyph = grid.floor.get(pos) || '';
-                        grid.floor.has(pos) && context.render(x, y, glyph, 'grey', 'black');
-                        glyph = grid.walls.get(pos) || '';
-                        grid.walls.has(pos) && context.render(x, y, glyph, 'grey', 'black');
+                if(!this.hasFog || grid.visible.has(pos)){
+                    if(grid.floor.has(pos)){
+                        renderVisible.glyph = grid.floor.get(pos) || '';
+                        context.render(x, y, renderVisible);
+                    } else if(grid.walls.has(pos)){
+                        renderVisible.glyph = grid.walls.get(pos) || '';
+                        context.render(x, y, renderVisible);
                     }
-                    if (grid.visible.has(pos)) {
-                        glyph = grid.floor.get(pos) || '';
-                        grid.floor.has(pos) && context.render(x, y, glyph, 'green', 'black');
-                        glyph = grid.walls.get(pos) || '';
-                        grid.walls.has(pos) && context.render(x, y, glyph, 'green', 'black');
+                } else if(this.hasFog && grid.revealed.has(pos)){
+                    if(grid.floor.has(pos)){
+                        renderRevealed.glyph = grid.floor.get(pos) || '';
+                        context.render(x, y, renderRevealed);
+                    } else if(grid.walls.has(pos)){
+                        renderRevealed.glyph = grid.walls.get(pos) || '';
                     }
-                } else {
-                    let glyph = grid.floor.get(pos) || '';
-                    grid.floor.has(pos) && context.render(x, y, glyph, 'green', 'black');
-                    glyph = grid.walls.get(pos) || '';
-                    grid.walls.has(pos) && context.render(x, y, glyph, 'green', 'black');
                 }
             }
         }

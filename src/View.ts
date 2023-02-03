@@ -12,12 +12,16 @@ export class Viewer {
     lightMap: Map<number, number>;
     radiusFunction: (x: number, y: number) => number;
 
-    constructor(radius: number, center: number, opaque = () => false, type = 'circle') {
+    constructor(radius: number, center: number, opaque = () => false) {
         this.isDirty = true;
         this.radius = radius;
         this.center = center;
-        this.opaque = opaque;
         this.lightMap = new Map();
+        this.opaque = opaque;
+        this.setRadiusFuntionType('square');
+    }
+
+    setRadiusFuntionType(type = 'circle'){
         switch (type) {
             case 'circle': this.radiusFunction = function (x: number, y: number): number { return Math.sqrt(x ** 2 + y ** 2); }; break;
             case 'square': this.radiusFunction = function (x: number, y: number): number { return Math.max(Math.abs(x), Math.abs(y)); }; break;
@@ -39,7 +43,7 @@ export class Viewer {
     }
 
     // TODO merge other light fonts
-    _castLight(row: number, st: number, end: number, xx: number, xy: number, yx: number, yy: number): void {
+    private _castLight(row: number, st: number, end: number, xx: number, xy: number, yx: number, yy: number): void {
         let newStart = 0;
         if (st < end) { return; }
 

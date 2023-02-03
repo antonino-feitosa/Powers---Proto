@@ -1,5 +1,16 @@
 
-import { range } from './Utils';
+
+export class Render {
+    glyph: string;
+    fg: string;
+    bg: string;
+
+    constructor(glyph: string, fg = 'white', bg = 'black') {
+        this.glyph = glyph;
+        this.fg = fg;
+        this.bg = bg;
+    }
+}
 
 export class Context {
 
@@ -23,12 +34,8 @@ export class Context {
         this.clearBuffer = true;
 
         let bg = Context._applyColor(' ', this.foreground, this.background);
-        this.matrix = [];
-        range(0, this._height, _ => {
-            let row: string[] = [];
-            range(0, this._width, () => row.push(bg));
-            this.matrix.push(row);
-        });
+        this.matrix = new Array<string[]>(this._height).fill([]);
+        this.matrix.forEach((_, index) => this.matrix[index] = new Array<string>(this._width).fill(bg));
     }
 
     start(): void {
@@ -36,8 +43,8 @@ export class Context {
         this.clearBuffer && process.stdout.write('\u001b[?25l'); // hide cursor
     }
 
-    render(x: number, y: number, glyph: string, fg: string, bg: string): void {
-        this.matrix[y][x] = Context._applyColor(glyph, fg, bg);
+    render(x: number, y: number, render: Render): void {
+        this.matrix[y][x] = Context._applyColor(render.glyph, render.fg, render.bg);
     }
 
     build(): void {

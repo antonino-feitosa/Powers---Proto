@@ -1,6 +1,6 @@
 
 
-let x: Map<number,string> = new Map<number, string>();
-for(let p in x.keys()){
-    console.log(typeof p);
-}
+let x = new Array<number[]>(5).fill([]);
+x.forEach((_,index) => x[index] = [index]);
+
+console.log(x);

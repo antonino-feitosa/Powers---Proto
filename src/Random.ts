@@ -66,7 +66,7 @@ export class Random {
     }
 
     /** Hash function to extract no zero 128 seed from a string.*/
-    static _cyrb128 = function (str: string): number[] {
+    private static _cyrb128 = function (str: string): number[] {
         let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
         for (let i = 0, k; i < str.length; i++) {
             k = str.charCodeAt(i);
@@ -83,7 +83,7 @@ export class Random {
     }
 
     /** Creates xoshiro128** with states a, b, c, d (32-bit integer each) generating 32-bit random integers*/
-    static _xoshiro128ss = function (a: number, b: number, c: number, d: number): () => number {
+    private static _xoshiro128ss = function (a: number, b: number, c: number, d: number): () => number {
         return function () {
             let t = b << 9, r = a * 5;
             r = (r << 7 | r >>> 25) * 9;

@@ -83,12 +83,16 @@ export class Grid {
         });
     }
 
-    static fromRoomEmpty(pos: number, width: number, height: number): Grid {
+    static fromRoomEmpty(center: number, width: number, height: number, rand: Random): Grid {
         const grid = new Grid();
-        grid.player = pos;
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                let p = Point.right(pos, x);
+        grid.player = center;
+        let halfWidth = width >> 1;
+        let halfHeight = height >> 1;
+        center = Point.up(center, halfHeight);
+        center = Point.left(center, halfWidth);
+        for (let y = -halfHeight; y < halfHeight+1; y++) {
+            for (let x = -halfWidth; x < halfWidth+1; x++) {
+                let p = Point.right(center, x);
                 p = Point.down(p, y);
                 grid.floor.set(p, Tile.Floor);
             }
@@ -97,13 +101,17 @@ export class Grid {
         return grid;
     }
 
-    static fromRoomBernoulli(pos: number, width: number, height: number, rand: Random, prob = 0.8): Grid {
+    static fromRoomBernoulli(center: number, width: number, height: number, rand: Random, prob = 0.8): Grid {
         const grid = new Grid();
-        grid.player = pos;
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
+        grid.player = center;
+        let halfWidth = width >> 1;
+        let halfHeight = height >> 1;
+        center = Point.up(center, halfHeight);
+        center = Point.left(center, halfWidth);
+        for (let y = -halfHeight; y < halfHeight; y++) {
+            for (let x = -halfWidth; x < halfWidth; x++) {
                 if (rand.nextDouble() < prob) {
-                    let p = Point.right(pos, x);
+                    let p = Point.right(center, x);
                     p = Point.down(p, y);
                     grid.floor.set(p, Tile.Floor);
                 }
@@ -113,12 +121,16 @@ export class Grid {
         return grid;
     }
 
-    static fromRoomPillarBernoulli(pos: number, width: number, height: number, rand: Random, prob = 0.2): Grid {
-        const grid = Grid.fromRoomEmpty(pos, width, height);
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
+    static fromRoomPillarBernoulli(center: number, width: number, height: number, rand: Random, prob = 0.2): Grid {
+        const grid = Grid.fromRoomEmpty(center, width, height, rand);
+        let halfWidth = width >> 1;
+        let halfHeight = height >> 1;
+        center = Point.up(center, halfHeight);
+        center = Point.left(center, halfWidth);
+        for (let y = -halfHeight; y < halfHeight; y++) {
+            for (let x = -halfWidth; x < halfWidth; x++) {
                 if (rand.nextDouble() < prob) {
-                    let neighbor = Point.neighborhood(pos);
+                    let neighbor = Point.neighborhood(center);
                     let index = rand.pick(neighbor);
                     grid.floor.delete(index);
                 }
@@ -127,15 +139,15 @@ export class Grid {
         return grid;
     }
 
-    static fromRoomRandomWalk(pos: number, rand: Random, length = 10, iterations = 10, restart = true): Grid {
+    static fromRoomRandomWalk(center: number, rand: Random, length = 10, iterations = 10, restart = true): Grid {
         const grid = new Grid();
-        grid.player = pos;
-        let current = pos;
+        grid.player = center;
+        let current = center;
         for (let i = 0; i < iterations; i++) {
-            restart && (current = pos);
+            restart && (current = center);
             grid.floor.set(current, Tile.Floor);
             for (let j = 0; j < length; j++) {
-                let card = Point.cardinals(pos);
+                let card = Point.cardinals(center);
                 current = rand.pick(card);
                 grid.floor.set(current, Tile.Floor);
             }

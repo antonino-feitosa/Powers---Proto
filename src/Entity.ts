@@ -1,6 +1,7 @@
 
 import { Point } from './Point';
 import { Game } from './Main';
+import { Render } from './Context';
 
 export class CombatStatus {
     maxHP: number;
@@ -23,19 +24,6 @@ export class CombatEvent {
         this.force = force;
     }
 }
-
-
-export class Render {
-    glyph: string;
-    fg: string;
-    bg: string;
-
-    constructor(glyph: string, fg = 'white', bg = 'black') {
-        this.glyph = glyph;
-        this.fg = fg;
-        this.bg = bg;
-    }
-};
 
 export class Entity {
     game: Game;
@@ -64,8 +52,8 @@ export class Item extends Entity {
     name: string;
     inInventory: boolean;
 
-    constructor(game: Game, pos: number, render: Render, name: string) {
-        super(game, pos, render);
+    constructor(name: string, game: Game, pos: number) {
+        super(game, pos, new Render('I', 'white', 'green'));
         this.inInventory = false;
         this.name = name;
     }
