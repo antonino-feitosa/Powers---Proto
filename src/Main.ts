@@ -3,15 +3,14 @@ import { Context, Render } from "./Context";
 import { Monster, Player, Item, Entity } from "./Entity";
 import { Point } from "./Point";
 import { Grid } from "./Grid";
+import { MapBuilder } from "./GridBuild";
 import { DijkstraMap } from "./DijkstraMap";
 import { Random } from "./Random";
 import { Viewer } from "./View";
 import { UI } from "./UI";
 
 export class Game {
-
-    static worldCenter = Point.from(5000, 5000);
-    clearBuffer = false;
+    clearBuffer = true;
 
     width: number;
     height: number;
@@ -39,7 +38,6 @@ export class Game {
 
         this.context = new Context(this.width, this.height);
         this.ui = new UI(this, 4, 15);
-        this.start();
     }
 
     isOpaque(p: number): boolean { return !this.grid.floor.has(p) }
@@ -48,22 +46,18 @@ export class Game {
     neighborhood(p: number): number[] { return Point.neighborhood(p).filter(n => !this.isOpaque(n)); }
 
     start(): void {
-        //this.grid = Grid.fromBernoulli(30, 20, rand);
-        //this.grid = Grid.fromRandom(this.width, this.height, this.rand, 100);
-        this.grid = Grid.fromRoomEmpty(Game.worldCenter, 20, 20, this.rand);
+        const builder = new MapBuilder(this.rand);
+        this.grid = builder.fromRandomWalk();
 
-        let startRoom = this.rand.pick(this.grid.rooms);
-        let positions = Array.from(startRoom.keys());
-        let startIndex = this.rand.pick(positions);
-        this.player = new Player(this, startIndex);
+        this.player = new Player(this, this.grid.start);
 
-        this.viewer = new Viewer(this.viewRange, startIndex, this.isOpaque.bind(this));
+        this.viewer = new Viewer(this.viewRange, this.player.pos, this.isOpaque.bind(this));
         let neighborhood = (p: number) => this.neighborhood(p).filter(p => this.canOverlap(this.grid.pointToEntity.get(p) || []));
         this.heatMap = new DijkstraMap(this.rand, neighborhood, this.moveCost.bind(this));
 
-        new Item('Heal Potion', this, startIndex - 2);
+        //new Item('Heal Potion', this, startIndex - 2);
 
-        this.addMonsters();
+        //this.addMonsters();
         this.startContext();
     }
 
@@ -88,7 +82,7 @@ export class Game {
         const player = this.player;
         let names = ['orc', 'dwarf', 'human', 'elf', 'goblin', 'troll'];
         grid.rooms.forEach(room => {
-            let maxMonsters = Math.floor(room.size / 16);
+            let maxMonsters = Math.ceil(room.size / 16);
             let numOfMonster = rand.nextInt(maxMonsters);
             for (let id = 0; id < numOfMonster; id++) {
                 let positions = Array.from(room.keys());
@@ -200,23 +194,6 @@ export class Game {
         context.build();
     }
 
-    drawHeatMap(xoff: number, yoff: number) {
-        const game = this;
-        const context = game.context;
-        const heatMap = game.heatMap;
-        const render = new Render(' ', 'green', 'black');
-        for (let y = 0; y < context.height; y++) {
-            for (let x = 0; x < context.width; x++) {
-                let pos = Point.from(xoff + x, yoff + y);
-                let val = heatMap.dist.get(pos);
-                if (val !== undefined) {
-                    render.glyph = val.toFixed(1);
-                    context.render(x, y, render);
-                }
-            }
-        }
-    }
-
     drawGrid(xoff: number, yoff: number) {
         const game = this;
         const grid = game.grid;
@@ -241,11 +218,32 @@ export class Game {
                         context.render(x, y, renderRevealed);
                     } else if(grid.walls.has(pos)){
                         renderRevealed.glyph = grid.walls.get(pos) || '';
+                        context.render(x, y, renderRevealed);
                     }
+                }
+            }
+        }
+    }
+
+    drawHeatMap(xoff: number, yoff: number) {
+        const game = this;
+        const context = game.context;
+        const heatMap = game.heatMap;
+        const render = new Render(' ', 'green', 'black');
+        for (let y = 0; y < context.height; y++) {
+            for (let x = 0; x < context.width; x++) {
+                let pos = Point.from(xoff + x, yoff + y);
+                let val = heatMap.dist.get(pos);
+                if (val !== undefined) {
+                    render.glyph = val.toFixed(1);
+                    context.render(x, y, render);
                 }
             }
         }
     }
 }
 
-new Game(80, 20).loop();
+const game = new Game(80, 20, 0, false);
+game.clearBuffer = false;
+game.start();
+game.loop();

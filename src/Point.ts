@@ -4,8 +4,10 @@ export class Point {
     static xcenter = 5000;
     static ycenter = 5000;
 
-    static from(x: number, y: number): number { return (y + Point.ycenter) * Point.width + (x + Point.xcenter); }
-    static to2D(p: number): number[] { return [p % Point.width - Point.xcenter, Math.floor(p / Point.width) - Point.ycenter]; }
+    static center = Point.width * Point.ycenter + Point.xcenter;
+
+    static from(x: number, y: number): number { return y * Point.width + x; }
+    static to2D(p: number): number[] { return [p % Point.width, Math.floor(p / Point.width)]; }
 
     static up(p: number, times: number = 1): number { return p - times * Point.width; }
     static down(p: number, times: number = 1): number { return p + times * Point.width; }

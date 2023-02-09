@@ -20,17 +20,17 @@ export class Random {
     }
 
     // Gets the next pseudorandom integer on the interval [0,`n`).
-    nextInt(n: number): number {
-        if (n <= 0)
+    nextInt(nExclusive: number): number {
+        if (nExclusive <= 0)
             throw new Error('The limit must be positive.');
-        return this._next() % n;
+        return this._next() % nExclusive;
     }
 
     // Gets the next pseudorandom integer on the interval [`min`,`max`).
-    nextRange(min: number, max: number): number {
-        if (max <= min)
-            throw new Error(`The maximum limit ${max} must be greater than the minimum ${min}.`);
-        return min + this.nextInt(max - min);
+    nextRange(minInclusive: number, maxExclusive: number): number {
+        if (maxExclusive <= minInclusive)
+            throw new Error(`The maximum limit ${maxExclusive} must be greater than the minimum ${minInclusive}.`);
+        return minInclusive + this.nextInt(maxExclusive - minInclusive);
     }
 
     // Gets the next pseudorandom real number on the interval [0,1).
@@ -48,6 +48,13 @@ export class Random {
             throw new Error('The array must have at least one element!');
         let index = this.nextInt(arr.length);
         return arr[index];
+    }
+
+    pickIndex<T>(arr: T[]): number {
+        if (arr.length <= 0)
+            throw new Error('The array must have at least one element!');
+        let index = this.nextInt(arr.length);
+        return index;
     }
 
     shuffle<T>(vet: T[]): void {

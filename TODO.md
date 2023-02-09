@@ -4,6 +4,9 @@
 The prototype is textual[^17] (Typescript) based on the software architecture described in [^18].
 It uses node with extend ANSI to render the game.
 
+# Issues
+
+- [ ] The corridor is merging the floor with the rooms. The room must remove the empty tiles. Problem to vault room witch all tiles are importart.
 
 # Controls
 
