@@ -1,7 +1,7 @@
 # Game Powers - Prototype
 
 Simple ARPG with rogue like game elements:
-- [ ] Turn Based (Active Time Battle);
+- [x] Turn Based;
 - [ ] Procedural Map Generation;
 - [ ] Permanent Death;
 - [ ] High difficulty;

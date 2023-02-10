@@ -47,6 +47,11 @@ export class Grid {
         this.pointToEntity = new Map<number, Entity[]>();
     }
 
+    applyToMap(grid:Grid): void {
+        this.floor.forEach((value, key) => grid.floor.set(key, value));
+        grid.rooms.push(this.floor);
+    }
+
     addWalls(): void {
         const floor = this.floor;
         const walls = this.walls;

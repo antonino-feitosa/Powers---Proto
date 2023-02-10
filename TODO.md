@@ -19,6 +19,14 @@ It uses node with extend ANSI to render the game.
 
 # TODO
 
+- [ ] Room database
+- [ ] Map database
+- [ ] Vault database (boss, puzzle)
+- [ ] Monster database
+- [ ] Monsters generator
+- [ ] Itens generator
+- [ ] Traps generator
+- [ ] Vaults
 - [ ] Inventory
 - [x] Migrate to js to use prototype based inheritance.
 - [x] Refactor removing references to Point. The world is a one dimensional array using the index as keys.

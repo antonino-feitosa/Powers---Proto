@@ -3,96 +3,150 @@ import { Point } from "./Point";
 import { Grid, Tile } from "./Grid";
 import { Random } from "./Random";
 
-export class RoomBuilder {
+abstract class AbstractRoom extends Grid {
+    rand: Random;
+    constructor(rand: Random) {
+        super();
+        this.rand = rand;
+    }
+    protected abstract sampleParameters(): void;
+    protected abstract doBuild(center: number): void;
+    build(center: number) {
+        this.sampleParameters();
+        this.doBuild(center);
+    }
+    pickStartEndPosition() {
+        const positions = Array.from(this.floor.keys());
+        [this.start, this.end] = this.rand.sample(positions, 2);
+    }
+}
 
+class RoomEmpty extends AbstractRoom {
     minWidth = 5;
-    maxWidth = 20;
+    maxWidth = 30;
     minHeight = 5;
-    maxHeight = 20;
+    maxHeight = 30;
+    width: number;
+    height: number;
 
-    minLength = 5;
-    maxLength = 20;
-    minIterations = 5;
-    maxIterations = 50;
-
-    sample(center: number, rand: Random): Grid {
-        let roomFunction = [];
-        let width = rand.nextRange(this.minWidth, this.maxWidth);
-        let height = rand.nextRange(this.minHeight, this.maxHeight);
-        //let length = rand.nextRange(this.minLength, this.maxLength);
-        //let iterations = rand.nextRange(this.minIterations, this.maxIterations);
-        //roomFunction.push(RoomBuilder.fromRoomEmpty.bind(RoomBuilder, center, width, height, rand));
-        //roomFunction.push(RoomBuilder.fromRoomBorder.bind(RoomBuilder, center, width, height, rand, rand.nextDouble()));
-        roomFunction.push(RoomBuilder.fromRoomPillarBernoulli.bind(RoomBuilder, center, width, height, rand, 1/*rand.nextDouble()*/));
-        //roomFunction.push(RoomBuilder.fromRoomRandomWalk.bind(RoomBuilder, center, rand, length, iterations, rand.nextBoolean()));
-        let room = rand.pick(roomFunction);
-        return room();
+    override sampleParameters(): void {
+        this.width = this.rand.nextRange(this.minWidth, this.maxWidth);
+        this.height = this.rand.nextRange(this.minHeight, this.maxHeight);
     }
 
-    static fromRoomEmpty(center: number, width: number, height: number, rand: Random): Grid {
-        const grid = new Grid();
-        let halfWidth = width >> 1;
-        let halfHeight = height >> 1;
+    override doBuild(center: number): void {
+        let halfWidth = this.width >> 1;
+        let halfHeight = this.height >> 1;
         for (let y = -halfHeight; y <= halfHeight; y++) {
             for (let x = -halfWidth; x <= halfWidth; x++) {
                 let p = x < 0 ? Point.left(center, -x) : Point.right(center, x);
                 p = y < 0 ? Point.up(p, -y) : Point.down(p, y);
-                grid.floor.set(p, Tile.Floor);
+                this.floor.set(p, Tile.Floor);
             }
         }
-        grid.rooms.push(grid.floor);
-        return grid;
+        this.rooms.push(this.floor);
     }
+}
 
-    static fromRoomBorder(center: number, width: number, height: number, rand: Random, prob = 0.8): Grid {
-        const grid = new Grid();
-        let halfWidth = width >> 1;
-        let halfHeight = height >> 1;
+class RoomBorder extends RoomEmpty {
+    percent: number;
+    override sampleParameters(): void {
+        super.sampleParameters();
+        this.percent = this.rand.nextDouble();
+    }
+    override doBuild(center: number): void {
+        let halfWidth = this.width >> 1;
+        let halfHeight = this.height >> 1;
         for (let y = -halfHeight; y <= halfHeight; y++) {
             for (let x = -halfWidth; x <= halfWidth; x++) {
-                if ((x > -halfWidth && y > -halfHeight && x < halfWidth && y < halfHeight) || rand.nextDouble() < prob) {
+                let intern = x > -halfWidth && y > -halfHeight && x < halfWidth && y < halfHeight;
+                if (intern || this.rand.nextDouble() < this.percent) {
                     let p = x < 0 ? Point.left(center, -x) : Point.right(center, x);
                     p = y < 0 ? Point.up(p, -y) : Point.down(p, y);
-                    grid.floor.set(p, Tile.Floor);
+                    this.floor.set(p, Tile.Floor);
                 }
             }
         }
-        grid.rooms.push(grid.floor);
-        return grid;
+        this.rooms.push(this.floor);
     }
+}
 
-    static fromRoomPillarBernoulli(center: number, width: number, height: number, rand: Random, prob = 0.2): Grid {
-        const grid = RoomBuilder.fromRoomEmpty(center, width, height, rand);
-        let halfWidth = width >> 1;
-        let halfHeight = height >> 1;
-        for (let y = -halfHeight + 1; y <= halfHeight; y+=2) {
-            for (let x = -halfWidth + 1; x <= halfWidth; x+=3) {
-                if (rand.nextDouble() < prob) {
+class RoomPillar extends RoomEmpty {
+    percent: number;
+    override sampleParameters(): void {
+        super.sampleParameters();
+        this.percent = this.rand.nextDouble();
+    }
+    override doBuild(center: number): void {
+        super.doBuild(center);
+        let halfWidth = this.width >> 1;
+        let halfHeight = this.height >> 1;
+        for (let y = -halfHeight + 1; y <= halfHeight; y += 2) {
+            for (let x = -halfWidth + 1; x <= halfWidth; x += 3) {
+                if (this.rand.nextDouble() < this.percent) {
                     let p = x < 0 ? Point.left(center, -x) : Point.right(center, x);
                     p = y < 0 ? Point.up(p, -y) : Point.down(p, y);
                     let neighbor = Point.neighborhood(p);
-                    let index = rand.pick(neighbor);
-                    grid.floor.delete(index);
+                    let index = this.rand.pick(neighbor);
+                    this.floor.delete(index);
                 }
             }
         }
-        return grid;
     }
+}
 
-    static fromRoomRandomWalk(center: number, rand: Random, length = 10, iterations = 10, restart = true): Grid {
-        const grid = new Grid();
+abstract class AbstractRoomRandomWalk extends AbstractRoom {
+    minLength: 5;
+    maxLength: 30;
+    minIterations = 5;
+    maxIterations = 100;
+    iterations: number;
+    length: number;
+    restart: boolean;
+    override sampleParameters(): void {
+        this.iterations = this.rand.nextRange(this.minIterations, this.maxIterations);
+        this.length = this.rand.nextRange(this.minLength, this.maxLength);
+        this.restart = this.rand.nextBoolean();
+    }
+    override doBuild(center: number): void {
         let current = center;
-        console.log(length, iterations);
-        for (let i = 0; i < iterations; i++) {
-            restart && (current = center);
+        for (let i = 0; i < this.iterations; i++) {
+            this.restart && (current = center);
             for (let j = 0; j < length; j++) {
-                grid.floor.set(current, Tile.Floor);
+                this.floor.set(current, Tile.Floor);
                 let card = Point.cardinals(current);
-                current = rand.pick(card);
+                current = this.rand.pick(card);
             }
         }
-        grid.rooms.push(grid.floor);
-        return grid;
+        this.rooms.push(this.floor);
+    }
+}
+
+class RoomCave extends AbstractRoomRandomWalk {
+    override sampleParameters(): void {
+        super.sampleParameters();
+        this.restart = false;
+    }
+}
+
+class RoomIsland extends AbstractRoomRandomWalk {
+    override sampleParameters(): void {
+        super.sampleParameters();
+        this.restart = true;
+    }
+}
+
+export class BuilderRoom {
+    sample(center: number, rand: Random): Grid {
+        let rooms: AbstractRoom[] = [];
+        rooms.push(new RoomEmpty(rand));
+        rooms.push(new RoomBorder(rand));
+        rooms.push(new RoomPillar(rand));
+        rooms.push(new RoomCave(rand));
+        rooms.push(new RoomIsland(rand));
+        let room = rand.pick(rooms);
+        room.build(center);
+        return room;
     }
 }
 
@@ -124,7 +178,7 @@ export class MapBuilder {
         let points = [];
         let map = new Grid();
         let current = Point.center;
-        
+
         map.floor.set(current, Tile.Floor);
         for (let i = 0; i < iterations; i++) {
             let index = this.rand.nextRange(0, 3);
