@@ -37,19 +37,12 @@ export class Grid {
     pointToEntity: Map<number, Entity[]>;
 
     constructor() {
-        this.end; // position of final stair
-        this.start; // position of initial stair
         this.rooms = [];
         this.floor = new Map<number, string>();
         this.walls = new Map<number, string>();
         this.revealed = new Map<number, number>();
         this.visible = new Map<number, number>();
         this.pointToEntity = new Map<number, Entity[]>();
-    }
-
-    applyToMap(grid:Grid): void {
-        this.floor.forEach((value, key) => grid.floor.set(key, value));
-        grid.rooms.push(this.floor);
     }
 
     addWalls(): void {

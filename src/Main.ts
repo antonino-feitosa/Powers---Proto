@@ -3,11 +3,12 @@ import { Context, Render } from "./Context";
 import { Monster, Player, Item, Entity } from "./Entity";
 import { Point } from "./Point";
 import { Grid } from "./Grid";
-import { MapBuilder } from "./GridBuild";
+import { BuilderMap } from "./BuilderMap";
 import { DijkstraMap } from "./DijkstraMap";
 import { Random } from "./Random";
 import { Viewer } from "./View";
 import { UI } from "./UI";
+import { BuilderRoom } from "./BuilderRoom";
 
 export class Game {
     clearBuffer = true;
@@ -46,8 +47,9 @@ export class Game {
     neighborhood(p: number): number[] { return Point.neighborhood(p).filter(n => !this.isOpaque(n)); }
 
     start(): void {
-        const builder = new MapBuilder(this.rand);
-        this.grid = builder.fromRandomWalk();
+        const roomBuilder = new BuilderRoom();
+        const mapBuilder = new BuilderMap(roomBuilder, this.rand);
+        this.grid = mapBuilder.sample(1);
 
         this.player = new Player(this, this.grid.start);
 
