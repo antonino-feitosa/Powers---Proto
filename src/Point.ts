@@ -9,6 +9,11 @@ export class Point {
     static from(x: number, y: number): number { return y * Point.width + x; }
     static to2D(p: number): number[] { return [p % Point.width, Math.floor(p / Point.width)]; }
 
+    static sameX(a: number, b: number): boolean { return a % Point.width == b % Point.width; }
+    static sameY(a: number, b: number): boolean { return Math.floor(a / Point.width) == Math.floor(b / Point.width); }
+    static sortX(a: number, b: number): Array<number> { return a % Point.width <= b % Point.width ? [a, b] : [b, a]; }
+    static sortY(a: number, b: number): Array<number> { return a / Point.width <= b / Point.width ? [a, b] : [b, a]; }
+
     static up(p: number, times: number = 1): number { return p - times * Point.width; }
     static down(p: number, times: number = 1): number { return p + times * Point.width; }
     static left(p: number, times: number = 1): number { return p - times; }
