@@ -92,14 +92,14 @@ class Unit extends Entity {
         return !positionList || positionList.reduce((can: boolean, e: Entity) => can && (e instanceof Item), true);
     }
 
-    tryMove(dest: number): boolean {
+    actionMove(dest: number): boolean {
         const entity = this;
         const game = this.game;
         const grid = game.grid;
         const pointToEntity = grid.pointToEntity;
 
         if (!game.isOpaque(dest)) {
-            let listCurrent = pointToEntity.get(this.pos) || [];
+            let listCurrent = pointToEntity.get(this.pos) as Array<Entity>;
             let listDest = pointToEntity.get(dest) || [];
             !pointToEntity.has(dest) && pointToEntity.set(dest, listDest);
             if (this.canOverlap(listDest)) {
@@ -108,6 +108,16 @@ class Unit extends Entity {
                 entity.pos = dest;
                 return true;
             }
+        }
+        return false;
+    }
+
+    actionUseItem(index: number): boolean {
+        if (index !== null) {
+            let item = this.inventory[index];
+            this.inventory = this.inventory.filter(i => i !== item);
+            item.process(this);
+            return true;
         }
         return false;
     }
@@ -125,7 +135,7 @@ class Unit extends Entity {
         this.damage = [];
         if (this.combatStatus.hp <= 0) {
             game.ui.printLog(`The ${this.name} Dies!`);
-            let listCurrent = pointToEntity.get(this.pos) || [];
+            let listCurrent = pointToEntity.get(this.pos) as Array<Entity>;
             pointToEntity.set(this.pos, listCurrent.filter(e => e !== this));
             this.isDead = true;
         }
@@ -136,7 +146,7 @@ class Unit extends Entity {
         const grid = game.grid;
         const point = this.pos;
         const pointToEntity = grid.pointToEntity;
-        let listCurrent = pointToEntity.get(point) || [];
+        let listCurrent = pointToEntity.get(point) as Array<Entity>;
         if (listCurrent.length > 1) {
             listCurrent.filter((x: Entity) => x instanceof Item).forEach((item: Item) => {
                 item.inInventory = true;
@@ -161,7 +171,7 @@ export class Player extends Unit {
     override canOverlap(positionList: Entity[]): boolean {
         if (positionList) {
             positionList.filter(e => e instanceof Monster)
-                .forEach((e:Monster) => e.damage.push(new CombatEvent(this, 8)));
+                .forEach((e: Monster) => e.damage.push(new CombatEvent(this, 8)));
         }
         return super.canOverlap(positionList);
     }
@@ -186,7 +196,7 @@ export class Monster extends Unit {
             game.ui.printLog(`The ${this.name} Attacks!`);
         } else {
             let pos = heatMap.fleeMap.chase(this.pos);
-            this.tryMove(pos);
+            this.actionMove(pos);
             game.rand.nextDouble() < 0.3 && game.ui.printLog(`${this.name} shouts a insult!`);
         }
     }

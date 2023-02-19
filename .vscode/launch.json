@@ -5,15 +5,25 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "type": "java",
+            "name": "Launch Test",
+            "request": "launch",
+            "mainClass": "Test",
+            "projectName": "Powers---Proto_36fe009c"
+        },
+        {
             "type": "node",
             "request": "launch",
             "name": "Debug with ts-node",
-
             "runtimeExecutable": "node",
-            "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
-
-            "args": ["src/Main.ts"],
-        
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "ts-node/register/transpile-only"
+            ],
+            "args": [
+                "src/Main.ts"
+            ],
             "sourceMaps": true,
             "cwd": "${workspaceFolder}"
         }

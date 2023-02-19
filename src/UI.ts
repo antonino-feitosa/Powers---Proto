@@ -80,7 +80,7 @@ export class UI {
                     case "'": this.state = UIState.Log; break;
                     case '1':
                         let options = player.inventory.map(item => item.name);
-                        this.selection = { title: 'Use Item', options: options, index: 0, call: this.game.useItem.bind(this.game) };
+                        this.selection = { title: 'Use Item', options: options, index: 0, call: player.actionUseItem.bind(this.game) };
                         this.state = UIState.Invetory;
                         break;
                     default:
@@ -166,14 +166,14 @@ export class UI {
 
     inputActions(player: Player, key: string): string {
         switch (key) {
-            case 'a': player.tryMove(Point.left(player.pos)); break;
-            case 'w': player.tryMove(Point.up(player.pos)); break;
-            case 'x': player.tryMove(Point.down(player.pos)); break;
-            case 'd': player.tryMove(Point.right(player.pos)); break;
-            case 'q': player.tryMove(Point.upLeft(player.pos)); break;
-            case 'e': player.tryMove(Point.upRight(player.pos)); break;
-            case 'z': player.tryMove(Point.downLeft(player.pos)); break;
-            case 'c': player.tryMove(Point.downRight(player.pos)); break;
+            case 'a': player.actionMove(Point.left(player.pos)); break;
+            case 'w': player.actionMove(Point.up(player.pos)); break;
+            case 'x': player.actionMove(Point.down(player.pos)); break;
+            case 'd': player.actionMove(Point.right(player.pos)); break;
+            case 'q': player.actionMove(Point.upLeft(player.pos)); break;
+            case 'e': player.actionMove(Point.upRight(player.pos)); break;
+            case 'z': player.actionMove(Point.downLeft(player.pos)); break;
+            case 'c': player.actionMove(Point.downRight(player.pos)); break;
             default: return '';
         }
         return 'action';

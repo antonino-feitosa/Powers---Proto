@@ -59,13 +59,8 @@ export class DijkstraMap {
     }
 
     private cmp(u: number, v: number): number {
-        let a = this.dist.get(u);
-        let b = this.dist.get(v);
-        if (a === undefined || b === undefined) {
-            console.warn('Compare: There are points with no distance!');
-            throw new Error('Point not present at positions!');
-            //return DijkstraMap.INF;
-        }
+        let a = this.dist.get(u) as number;
+        let b = this.dist.get(v) as number;
         return a - b;
     };
 
@@ -98,14 +93,8 @@ export class DijkstraMap {
             queue.length--;
 
             this.neighborhood(u).forEach(v => {
-                let udist = this.dist.get(u);
-                let vdist = this.dist.get(v);
-                if (udist === undefined || vdist === undefined) {
-                    udist = DijkstraMap.INF;
-                    vdist = DijkstraMap.INF;
-                    console.warn('Neighborhood: There are points with no distance!');
-                    //throw new Error('Point not present at positions!');
-                }
+                let udist = this.dist.get(u) as number;
+                let vdist = this.dist.get(v) as number;
                 let alt = udist === DijkstraMap.INF ? DijkstraMap.INF : udist + this.cost(u, v);
                 if (alt < vdist) {
                     this.dist.set(v, alt);

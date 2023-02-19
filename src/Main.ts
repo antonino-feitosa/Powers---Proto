@@ -159,18 +159,6 @@ export class Game {
         visibleEntities.forEach(current => current.update());
     }
 
-    useItem(index: number): boolean {
-        if (index !== null) {
-            const player = this.player;
-            let item = player.inventory[index];
-            player.inventory = player.inventory.filter(i => i !== item);
-            item.process(player);
-            this.loop();
-            return true;
-        }
-        return false;
-    }
-
     draw(): void {
         const game = this;
         const player = game.player;
